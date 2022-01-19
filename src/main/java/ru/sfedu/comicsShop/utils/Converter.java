@@ -11,20 +11,22 @@ import java.util.List;
 
 public class Converter extends AbstractBeanField<Item, Integer> {
     private static final Logger log = LogManager.getLogger(Converter.class.getName());
+    DataProviderCsv provider = new DataProviderCsv();
 
     @Override
     protected Object convert(String s) {
         String indexString;
         indexString = s.substring(1, s.length() - 1);
-        String[] unparsedIndexList = indexString.split(",");
+        String[] parsedIndexList = indexString.split(",");
         List<Item> indexItemList = new ArrayList<>();
-        for (String strIndex : unparsedIndexList) {
+        Item item;
+        for (String strIndex : parsedIndexList) {
             if (!strIndex.isEmpty()) {
-                Item item = new Item();
-                item.setId(Long.parseLong(strIndex));
+                item = provider.getItemById(Long.parseLong(strIndex)).orElse(new Item());
                 indexItemList.add(item);
             }
         }
+        log.debug(indexItemList);
         return indexItemList;
     }
 
@@ -44,5 +46,4 @@ public class Converter extends AbstractBeanField<Item, Integer> {
         builder.append("]");
         return builder.toString();
     }
-
 }

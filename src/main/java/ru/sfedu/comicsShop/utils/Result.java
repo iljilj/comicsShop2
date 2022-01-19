@@ -4,10 +4,22 @@ package ru.sfedu.comicsShop.utils;
 public class Result<T> {
     private T object;
     private Status status;
+    private String message;
     private long newPrice;
 
     public Result(Status status) {
         this.status = status;
+    }
+
+    public Result(T object, Status status, String message) {
+        this.object = object;
+        this.status = status;
+        this.message = message;
+    }
+
+    public Result(Status status, String message) {
+        this.status = status;
+        this.message = message;
     }
 
     public Result(T object, Status status) {
@@ -15,6 +27,7 @@ public class Result<T> {
         this.status = status;
     }
 
+    //!!!
     public Result(Status status, T data, long newPrice){
         this.status = status;
         this.object = data;

@@ -3,6 +3,24 @@ package ru.sfedu.comicsShop;
 public class Constants {
 
 
+    public static final String TEST_USER1 = "userId1";
+    public static final String TEST_USER2 = "userId2";
+    public static final String TEST_USER3 = "userId3";
+    public static final String TEST_ITEM1 = "itemId1";
+    public static final String TEST_ITEM2 = "itemId2";
+    public static final String TEST_ITEM3 = "itemId3";
+    public static final String TEST_ITEM4 = "itemId4";
+    public static final String TEST_CART1 = "cartId1";
+    public static final String TEST_CART2 = "cartId2";
+    public static final String TEST_CART3 = "cartId3";
+    public static final String TEST_GIFT_CERTIFICATE1 = "giftCertificateId1";
+    public static final String TEST_PROMO_CODE1 = "giftPromoCdeId1";
+    public static final String TEST_ORDER1 = "giftOrder1";
+    public static final String TEST_ORDER2 = "giftOrder2";
+    public static final String TEST_ORDER3 = "giftOrder3";
+
+
+
 
 
 

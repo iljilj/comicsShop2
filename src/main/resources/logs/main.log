@@ -37,3 +37,10 @@
 17 Jan 2022 16:58:51,914 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.RuntimeException: Error parsing CSV line: 2. [-355180837,Item{id=-710193762, name='JoJo's Bizarre Adventure, vol. 1', price=200, amount=1},-841700184]
 17 Jan 2022 17:00:19,072 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.RuntimeException: Error parsing CSV line: 2. [-882407612,Item{id=728328443, name='JoJo's Bizarre Adventure, vol. 1', price=200, amount=1},991405551]
 17 Jan 2022 17:00:19,087 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.RuntimeException: Error parsing CSV line: 2. [-882407612,Item{id=728328443, name='JoJo's Bizarre Adventure, vol. 1', price=200, amount=1},991405551]
+18 Jan 2022 21:48:38,133 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.NullPointerException: Cannot invoke "java.util.List.add(Object)" because "items" is null
+18 Jan 2022 22:24:33,724 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.NullPointerException: Cannot invoke "java.util.List.add(Object)" because "items" is null
+18 Jan 2022 23:36:48,999 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.NullPointerException: Cannot invoke "java.util.List.add(Object)" because "items" is null
+18 Jan 2022 23:53:56,675 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.NullPointerException: Cannot invoke "java.util.List.add(Object)" because "items" is null
+18 Jan 2022 23:54:15,306 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.NullPointerException: Cannot invoke "java.util.List.add(Object)" because "items" is null
+19 Jan 2022 11:39:45,278 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.NullPointerException: Cannot invoke "java.util.List.add(Object)" because "items" is null
+19 Jan 2022 11:47:49,388 [main] ERROR ru.sfedu.comicsShop.provider.DataProviderCsv - java.lang.NullPointerException: Cannot invoke "java.util.List.add(Object)" because "items" is null

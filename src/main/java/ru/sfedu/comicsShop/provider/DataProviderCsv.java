@@ -89,9 +89,14 @@ public class DataProviderCsv implements IDataProvider{
         try{
             final long id = UUID.randomUUID().getMostSignificantBits() % 1000000000;
             Item object = new Item(id, name, price, amount);
-          //  final String methodName = object.getClass().getEnclosingMethod().getName();
             final String className = object.getClass().getSimpleName();
             Status status = Status.FAULT;
+//            if(getItemById(id).isPresent()){
+//                Result<>
+//            }
+//
+
+
             if(getItemById(id).isEmpty()
                     && price > 0
                     && amount > 0){
@@ -99,6 +104,7 @@ public class DataProviderCsv implements IDataProvider{
                 List<Item> objects = csvToBean(Item.class, path);
                 objects.add(object);
                 status = beanToCsv(objects, className, path);
+                //log.debug
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, status);
             saveHistory(historyContent);
@@ -175,6 +181,8 @@ public class DataProviderCsv implements IDataProvider{
             final String className = object.getClass().getSimpleName();
             Status status = Status.FAULT;
             if(getGiftCertificateById(id).isEmpty()
+                    && getPromoCodeById(id).isEmpty()
+                    && id != 0
                     && discountTotal > 0
                     && getUserById(userId).isPresent()){
                 String path = getPath(GiftCertificate.class);
@@ -203,6 +211,8 @@ public class DataProviderCsv implements IDataProvider{
             final String className = object.getClass().getSimpleName();
             Status status = Status.FAULT;
             if(getPromoCodeById(id).isEmpty()
+                    && getGiftCertificateById(id).isEmpty()
+                    && id != 0
                     && minTotalPrice > 0
                     && discountPrice > 0
                     && discountPrice < 100){
@@ -233,7 +243,9 @@ public class DataProviderCsv implements IDataProvider{
             Status status = Status.FAULT;
             if(getOrderById(id).isEmpty()
                     && getCartById(cartId).isPresent()
-              //discountCodeId либо существует либо не указан
+                    && (discountCodeId == 0
+                    || getPromoCodeById(discountCodeId).isPresent()
+                    || getGiftCertificateById(discountCodeId).isPresent())
                     && price > 0){
                 String path = getPath(Order.class);
                 List<Order> objects = csvToBean(Order.class, path);
@@ -307,14 +319,14 @@ public class DataProviderCsv implements IDataProvider{
             List<Cart> objects = csvToBean(Cart.class, path);;
             Optional<Cart> object = objects.stream().filter(o -> o.getId() == id).findFirst();
             if (object.isPresent()){
-                List<Item> items = object.get().getItemList();
-                List<Item> itemsNew = new ArrayList<>();
-                Item i;
-                for (Item item : items){
-                    i = getItemById(item.getId()).orElse(item);
-                    itemsNew.add(i);
-                }
-                object.get().setItemList(itemsNew);
+//                List<Item> items = object.get().getItemList();
+//                List<Item> itemsNew = new ArrayList<>();
+//                Item i;
+//                for (Item item : items){
+//                    i = getItemById(item.getId()).orElse(item);
+//                    itemsNew.add(i);
+//                }
+//                object.get().setItemList(itemsNew);
                 saveHistory(createHistoryContent(className, methodName, object.get(), Status.SUCCESS));
             }else{
                 saveHistory(createHistoryContent(className, methodName, new Cart(), Status.FAULT));
@@ -546,7 +558,9 @@ public class DataProviderCsv implements IDataProvider{
             Status status = Status.FAULT;
             if(getOrderById(id).isPresent()
                     && getCartById(cartId).isPresent()
-                    //discountCodeId либо существует либо не указан
+                    && (discountCodeId == 0
+                    || getPromoCodeById(discountCodeId).isPresent()
+                    || getGiftCertificateById(discountCodeId).isPresent())
                     && price > 0){
                 String path = getPath(Order.class);
                 List<Order> objects = csvToBean(Order.class, path);
@@ -759,59 +773,313 @@ public class DataProviderCsv implements IDataProvider{
     }
 
     @Override
-    public Result<Cart> emptyCart(long userId) {
-//        String path = getPath(Cart.class);
-//        List<Cart> cartListAll = csvToBean(Cart.class, path);
-//        List<Item> itemList;
-//        List<Cart> cartList = new ArrayList<>();
-//       // String pathOrder = getPath(Order.class);
-//        Optional<Cart> cart = (cartListAll.stream().filter(o -> o.getUserId() == userId).findFirst());
-//        while (cart.isPresent()){
-//            cartList.add(cart.get());
-//           // deleteOrder(order.get().getId());
-//            itemList = cart.get().getItemList();
-//            for (Item item : itemList){
-//                deleteItem(item.getId());
-//            }
-//            cart = (cartListAll.stream().filter(o -> o.getUserId() == userId).findFirst());
-//        }
-//
-//
-//         new HashSet<>(csvToBean(Item.class, getPath(Item.class))).containsAll(itemList)); //проверка есть ли все указанные айтемы
-
-        return null;
-
-        }
-
-    @Override
-    public Result<Cart> showAllItems(long userId) {
-        return null;
+    public Result<Cart> createEmptyCart(long userId) {
+        return saveCart(userId, new ArrayList<Item>());
     }
 
     @Override
+    public Result<Cart> addItemToCart(long cartId, String name, long price, int amount) {
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        try{
+            Optional<Cart> cart = getCartById(cartId);
+            if (cart.isPresent()){
+                Result<Item> resultItem = saveItem(name, price, amount);
+                if (resultItem.getStatus().equals(Status.SUCCESS)){
+                    long itemId = resultItem.getObject().getId();
+                    List<Item> items = cart.get().getItemList();
+                    items.add(new Item(itemId, name, price, amount));
+                    Result<Cart> resultCart = updateCart(cartId, cart.get().getUserId(), items);
+                    HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(), methodName, resultCart.getObject(), resultCart.getStatus());
+                    saveHistory(historyContent);
+                    return resultCart;
+                }else{
+                    HistoryContent historyContent = createHistoryContent(Item.class.getSimpleName(), methodName, new Item(), Status.FAULT);
+                    saveHistory(historyContent);
+                }
+            } else {
+                HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(), methodName, new Cart(), Status.FAULT);
+                saveHistory(historyContent);
+                return new Result<>(Status.FAULT, "No such cart");
+            }
+            return new Result<>(Status.FAULT);
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(),
+                    methodName, new Cart(), Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(Status.FAULT);
+        }
+    }
+
+    @Override
+    public Result<List<Cart>> emptyCart(long userId) {
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        try{
+            String pathCart = getPath(Cart.class);
+            List<Cart> allCarts = csvToBean(Cart.class, pathCart);
+            List<Cart> emptiedCarts = new ArrayList<>();
+            String pathOrder = getPath(Order.class);
+            List<Order> allOrders = csvToBean(Order.class, pathOrder);
+            long cartId;
+            boolean cartInOrder = false;
+            for (Cart cart : allCarts){
+                if (cart.getUserId() == userId){
+                    cartId = cart.getId();
+                    for (Order order : allOrders){
+                        if (order.getCartId() == cartId) {
+                            cartInOrder = true;
+                            break;
+                        }
+                    }
+                    if (!cartInOrder){
+                        emptiedCarts.add(getCartById(cartId).orElse(new Cart()));
+                        updateCart(cartId, userId, new ArrayList<Item>());
+                    }
+                    cartInOrder = false;
+                }
+            }
+            return new Result<>(emptiedCarts, Status.SUCCESS);
+        }catch(Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(),
+                    methodName, new Cart(), Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(Status.FAULT);
+        }
+    }
+
+    @Override
+    public Result<List<Cart>> showAllCarts(long userId) {
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        try{
+            String pathCart = getPath(Cart.class);
+            List<Cart> allCarts = csvToBean(Cart.class, pathCart);
+            List<Cart> userCarts = new ArrayList<>();
+            String pathOrder = getPath(Order.class);
+            List<Order> allOrders = csvToBean(Order.class, pathOrder);
+            long cartId;
+            boolean cartInOrder = false;
+            for (Cart cart : allCarts){
+                if (cart.getUserId() == userId){
+                    cartId = cart.getId();
+                    for (Order order : allOrders){
+                        if (order.getCartId() == cartId) {
+                            cartInOrder = true;
+                            break;
+                        }
+                    }
+                    if (!cartInOrder){
+                        userCarts.add(getCartById(cartId).orElse(new Cart()));
+                    }
+                    cartInOrder = false;
+                }
+            }
+            HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(),
+                    methodName, userCarts, Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(userCarts, Status.SUCCESS);
+        }catch(Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(),
+                    methodName, new Cart(), Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(Status.FAULT);
+        }
+    }
+
+//    @Override
+//    public Result<List<Order>> showAllOrders(long userId) {
+//        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+//        try {
+//            String pathOrder = getPath(Order.class);
+//            List<Order> allOrders = csvToBean(Order.class, pathOrder);
+//            List<Order> userOrders = new ArrayList<>();
+//            Optional<Cart> cart;
+//            for (Order order : allOrders){
+//                cart = getCartById(order.getCartId());
+//                if (cart.isPresent()) {
+//                    if (cart.get().getUserId() == userId){
+//                        userOrders.add(order);
+//                    }
+//                }
+//            }
+//            HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(),
+//                    methodName, userOrders, Status.SUCCESS);
+//            saveHistory(historyContent);
+//            return new Result<>(userOrders, Status.SUCCESS);
+//        } catch (Exception e) {
+//            log.error(e);
+//            HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(),
+//                    methodName, new Order(), Status.FAULT);
+//            saveHistory(historyContent);
+//            return new Result<>(Status.FAULT);
+//        }
+//    }
+
+    @Override
     public long countPrice(long cartId) {
-        return 0;
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        try{
+            Optional<Cart> cart = getCartById(cartId);
+            long price = 0;
+            if (cart.isPresent()){
+                for (Item item : cart.get().getItemList()){
+                    price += item.getPrice() * item.getAmount();
+                }
+            }
+            HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(),
+                    methodName, cart.orElse(new Cart()), Status.SUCCESS);
+            saveHistory(historyContent);
+            return price;
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(),
+                    methodName, new Cart(), Status.FAULT);
+            saveHistory(historyContent);
+            return 0;
+        }
     }
 
     @Override
     public Result<? extends DiscountCode> makeDiscount(long userId, String discountCode, long price) {
-        return null;
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        try {
+            long newPrice;
+            String pathPromoCode = getPath(PromoCode.class);
+            List<PromoCode> promoCodes = csvToBean(PromoCode.class, pathPromoCode);
+            Optional<PromoCode> promoCode = promoCodes.stream().filter(o -> Objects.equals(o.getName(), discountCode)).findFirst();
+            if (promoCode.isPresent()){
+                newPrice = enterPromoCode(promoCode.get().getId(), price);
+                if (newPrice < price){
+                    HistoryContent historyContent = createHistoryContent(PromoCode.class.getSimpleName(),
+                            methodName, promoCode.get(), Status.SUCCESS);
+                    saveHistory(historyContent);
+                    return new Result<>(Status.SUCCESS, promoCode.get(), newPrice);
+                } else {
+                    HistoryContent historyContent = createHistoryContent(PromoCode.class.getSimpleName(),
+                            methodName, new PromoCode(), Status.FAULT);
+                    saveHistory(historyContent);
+                    return new Result<>(Status.FAULT, promoCode.get(), price);
+                }
+            } else {
+                String pathGiftCertificate = getPath(GiftCertificate.class);
+                List<GiftCertificate> giftCertificates = csvToBean(GiftCertificate.class, pathGiftCertificate);
+                Optional<GiftCertificate> giftCertificate = giftCertificates.stream().filter(o -> Objects.equals(o.getName(), discountCode)).findFirst();
+                if (giftCertificate.isPresent()){
+                    newPrice = enterGiftCertificate(giftCertificate.get().getId(), userId, price);
+                    if (newPrice < price){
+                        HistoryContent historyContent = createHistoryContent(GiftCertificate.class.getSimpleName(),
+                                methodName, giftCertificate.get(), Status.SUCCESS);
+                        saveHistory(historyContent);
+                        return new Result<>(Status.SUCCESS, giftCertificate.get(), newPrice);
+                    } else {
+                        HistoryContent historyContent = createHistoryContent(GiftCertificate.class.getSimpleName(),
+                                methodName, new GiftCertificate(), Status.FAULT);
+                        saveHistory(historyContent);
+                        return new Result<>(Status.FAULT, giftCertificate.get(), price);
+                    }
+                } else {
+                    HistoryContent historyContent = createHistoryContent(DiscountCode.class.getSimpleName(),
+                            methodName, new PromoCode(), Status.FAULT);
+                    saveHistory(historyContent);
+                    return new Result<>(Status.FAULT);
+                }
+            }
+        } catch (Exception e) {
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(DiscountCode.class.getSimpleName(),
+                    methodName, new PromoCode(), Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(Status.FAULT);
+        }
     }
 
     @Override
-    public long enterPromoCode(long discountCodeId, float price) {
-        return 0;
+    public long enterPromoCode(long discountCodeId, long price) {
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        try {
+            Status status;
+            PromoCode promoCode = getPromoCodeById(discountCodeId).orElse(new PromoCode());
+            if (price >= promoCode.getMinTotalPrice() && promoCode.isCurrentlyAvailable()) {
+                price -= price / promoCode.getDiscountPercent();
+                status = Status.SUCCESS;
+            } else {
+                status = Status.FAULT;
+            }
+            HistoryContent historyContent = createHistoryContent(PromoCode.class.getSimpleName(),
+                    methodName, promoCode, status);
+            saveHistory(historyContent);
+            return price;
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(PromoCode.class.getSimpleName(),
+                    methodName, new PromoCode(), Status.FAULT);
+            saveHistory(historyContent);
+            return price;
+        }
     }
 
     @Override
     public long enterGiftCertificate(long discountCodeId, long userId, long price) {
-        return 0;
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        try {
+            Status status;
+            GiftCertificate giftCertificate = getGiftCertificateById(discountCodeId).orElse(new GiftCertificate());
+            if (giftCertificate.getUserId() == userId && giftCertificate.isCurrentlyAvailable()) {
+                price -= giftCertificate.getDiscountTotal();
+                if (price < 0){
+                    price = 0;
+                }
+                status = Status.SUCCESS;
+            } else {
+                status = Status.FAULT;
+            }
+            updateGiftCertificate(giftCertificate.getId(), giftCertificate.getName(), false, giftCertificate.getDiscountTotal(), giftCertificate.getUserId());
+            HistoryContent historyContent = createHistoryContent(GiftCertificate.class.getSimpleName(),
+                    methodName, giftCertificate, status);
+            saveHistory(historyContent);
+            return price;
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(GiftCertificate.class.getSimpleName(),
+                    methodName, new GiftCertificate(), Status.FAULT);
+            saveHistory(historyContent);
+            return price;
+        }
     }
 
     @Override
     public Result<Order> makeOrder(long cartId, String address, String discountCode) {
-        return null;
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        try {
+            long price = countPrice(cartId);
+            if (price > 0){
+                long discountCodeId;
+                Cart cart = getCartById(cartId).orElse(new Cart());
+                Result<? extends DiscountCode> discountResult = makeDiscount(cart.getUserId(), discountCode, price);
+                if (discountResult.getStatus().equals(Status.SUCCESS)){
+                    discountCodeId = discountResult.getObject().getId();
+                    price = discountResult.getNewPrice();
+                } else {
+                    discountCodeId = 0;
+                }
+                Result<Order> result = saveOrder(address,cartId, discountCodeId, price);
+                HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(),
+                        methodName, result.getObject(), Status.FAULT);
+                saveHistory(historyContent);
+                return result;
+            } else {
+                HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(),
+                        methodName, new Order(), Status.FAULT);
+                saveHistory(historyContent);
+                return new Result<>(Status.FAULT);
+            }
+        } catch (Exception e) {
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(),
+                    methodName, new Order(), Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(Status.FAULT);
+        }
     }
-
-
 }
