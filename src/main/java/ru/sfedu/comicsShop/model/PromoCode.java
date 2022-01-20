@@ -1,12 +1,17 @@
 package ru.sfedu.comicsShop.model;
 
 import com.opencsv.bean.CsvBindByName;
+import org.simpleframework.xml.Element;
+import org.simpleframework.xml.Root;
 
 import java.util.Objects;
 
+@Root
 public class PromoCode extends DiscountCode{
+    @Element
     @CsvBindByName(column = "minTotalPrice")
     private long minTotalPrice;
+    @Element
     @CsvBindByName(column = "discountPercent")
     private long discountPercent;
 

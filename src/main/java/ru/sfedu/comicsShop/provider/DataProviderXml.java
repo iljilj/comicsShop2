@@ -5,13 +5,14 @@ import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.simpleframework.xml.Serializer;
+import org.simpleframework.xml.core.Persister;
 import ru.sfedu.comicsShop.Constants;
 import ru.sfedu.comicsShop.model.*;
 import ru.sfedu.comicsShop.utils.HistoryContent;
-
 import ru.sfedu.comicsShop.utils.Result;
-
 import ru.sfedu.comicsShop.utils.Status;
+import ru.sfedu.comicsShop.utils.XmlUtil;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -23,17 +24,17 @@ import static ru.sfedu.comicsShop.Constants.DEFAULT_ACTOR;
 import static ru.sfedu.comicsShop.utils.ConfigurationUtil.getConfigurationEntry;
 import static ru.sfedu.comicsShop.utils.HistoryUtil.saveHistory;
 
-public class DataProviderCsv implements IDataProvider{
-    private static final Logger log = LogManager.getLogger(DataProviderCsv.class.getName());
+public class DataProviderXml implements IDataProvider{
+    private static final Logger log = LogManager.getLogger(DataProviderXml.class.getName());
 
-    private <T> Result<T> beanToCsv(List<T> objects, String className, String path) {
+    private <T> Result<T> beanToXml(List<T> objects, String className, String path) {
         final String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
         log.debug(methodName);
         try {
             Writer writer = new FileWriter(getConfigurationEntry(path));
-            StatefulBeanToCsvBuilder<T> builder = new StatefulBeanToCsvBuilder<>(writer);
-            StatefulBeanToCsv<T> beanWriter = builder.build();
-            beanWriter.write(objects);
+            Serializer serializer = new Persister();
+            XmlUtil<T> container = new XmlUtil<>(objects);
+            serializer.write(container, writer);
             writer.close();
             HistoryContent historyContent = createHistoryContent(className, methodName, objects, Status.SUCCESS);
             saveHistory(historyContent);
@@ -46,16 +47,21 @@ public class DataProviderCsv implements IDataProvider{
         }
     }
 
-    public static <T> Result<List<T>> csvToBean(Class<T> tClass, String path) {
+    public static <T> Result<List<T>> xmlToBean(Class<T> tClass, String path) {
         final String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
         log.debug(methodName);
+
         try {
+            log.info("1");
+            log.info(getConfigurationEntry(path));
             FileReader fileReader = new FileReader(getConfigurationEntry(path));
-            List<T> objects = new CsvToBeanBuilder<T>(fileReader)
-                    .withType(tClass)
-                    .withSeparator(',')
-                    .build()
-                    .parse();
+            log.info("2");
+            Serializer serializer = new Persister();
+            log.info("3");
+            XmlUtil<T> container = serializer.read(XmlUtil.class, fileReader);
+            log.info("4");
+            final List<T> objects = container.getList();
+            log.info("5");
             fileReader.close();
             HistoryContent historyContent = createHistoryContent(tClass.getSimpleName(), methodName, objects, Status.SUCCESS);
             saveHistory(historyContent);
@@ -73,18 +79,19 @@ public class DataProviderCsv implements IDataProvider{
     }
 
     private static <T> String getPath(Class<T> tClass) {
+        log.info(tClass.getSimpleName());
+        log.info("NNNNNNNNNNNNNNNNNNN");
         String path = switch (tClass.getSimpleName()) {
-            case "Item" -> Constants.ITEM_CSV;
-            case "User" -> Constants.USER_CSV;
-            case "Cart" -> Constants.CART_CSV;
-            case "GiftCertificate" -> Constants.GIFT_CERTIFICATE_CSV;
-            case "PromoCode" -> Constants.PROMO_CODE_CSV;
-            case "Order" -> Constants.ORDER_CSV;
+            case "Item" -> Constants.ITEM_XML;
+            case "User" -> Constants.USER_XML;
+            case "Cart" -> Constants.CART_XML;
+            case "GiftCertificate" -> Constants.GIFT_CERTIFICATE_XML;
+            case "PromoCode" -> Constants.PROMO_CODE_XML;
+            case "Order" -> Constants.ORDER_XML;
             default -> "";
         };
         return path;
     }
-
     @Override
     public Result<Item> saveItem(String name, long price, int amount) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
@@ -102,10 +109,10 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_AMOUNT);
             } else {
                 String path = getPath(Item.class);
-                Result<List<Item>> objects = csvToBean(Item.class, path);
+                Result<List<Item>> objects = xmlToBean(Item.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -136,10 +143,10 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_SUCH_ID_EXISTS);
             } else {
                 String path = getPath(User.class);
-                Result<List<User>> objects = csvToBean(User.class, path);
+                Result<List<User>> objects = xmlToBean(User.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -170,14 +177,14 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_SUCH_ID_EXISTS);
             } else if(getUserById(userId).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_USER_ID);
-            } else if(!(new HashSet<>(csvToBean(Item.class, getPath(Item.class)).getObject()).containsAll(itemList))){
+            } else if(!(new HashSet<>(xmlToBean(Item.class, getPath(Item.class)).getObject()).containsAll(itemList))){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_ITEM_LIST);
             } else {
                 String path = getPath(Cart.class);
-                Result<List<Cart>> objects = csvToBean(Cart.class, path);
+                Result<List<Cart>> objects = xmlToBean(Cart.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -216,10 +223,10 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
                 String path = getPath(GiftCertificate.class);
-                Result<List<GiftCertificate>> objects = csvToBean(GiftCertificate.class, path);
+                Result<List<GiftCertificate>> objects = xmlToBean(GiftCertificate.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -258,10 +265,10 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_DISCOUNT_PERCENT);
             } else {
                 String path = getPath(PromoCode.class);
-                Result<List<PromoCode>> objects = csvToBean(PromoCode.class, path);
+                Result<List<PromoCode>> objects = xmlToBean(PromoCode.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -298,10 +305,10 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_PRICE);
             } else {
                 String path = getPath(Order.class);
-                Result<List<Order>> objects = csvToBean(Order.class, path);
+                Result<List<Order>> objects = xmlToBean(Order.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -326,7 +333,7 @@ public class DataProviderCsv implements IDataProvider{
         try {
             Status status = Status.FAULT;
             String path = getPath(Item.class);
-            Result<List<Item>> objects = csvToBean(Item.class, path);
+            Result<List<Item>> objects = xmlToBean(Item.class, path);
             Optional<Item> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -354,7 +361,7 @@ public class DataProviderCsv implements IDataProvider{
         try {
             Status status = Status.FAULT;
             String path = getPath(User.class);
-            Result<List<User>> objects = csvToBean(User.class, path);
+            Result<List<User>> objects = xmlToBean(User.class, path);
             Optional<User> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -382,7 +389,7 @@ public class DataProviderCsv implements IDataProvider{
         try {
             Status status = Status.FAULT;
             String path = getPath(Cart.class);
-            Result<List<Cart>> objects = csvToBean(Cart.class, path);
+            Result<List<Cart>> objects = xmlToBean(Cart.class, path);
             Optional<Cart> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -410,7 +417,7 @@ public class DataProviderCsv implements IDataProvider{
         try {
             Status status = Status.FAULT;
             String path = getPath(GiftCertificate.class);
-            Result<List<GiftCertificate>> objects = csvToBean(GiftCertificate.class, path);
+            Result<List<GiftCertificate>> objects = xmlToBean(GiftCertificate.class, path);
             Optional<GiftCertificate> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -438,7 +445,7 @@ public class DataProviderCsv implements IDataProvider{
         try {
             Status status = Status.FAULT;
             String path = getPath(PromoCode.class);
-            Result<List<PromoCode>> objects = csvToBean(PromoCode.class, path);
+            Result<List<PromoCode>> objects = xmlToBean(PromoCode.class, path);
             Optional<PromoCode> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -466,7 +473,7 @@ public class DataProviderCsv implements IDataProvider{
         try {
             Status status = Status.FAULT;
             String path = getPath(Order.class);
-            Result<List<Order>> objects = csvToBean(Order.class, path);
+            Result<List<Order>> objects = xmlToBean(Order.class, path);
             Optional<Order> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -503,11 +510,11 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_AMOUNT);
             } else {
                 String path = getPath(Item.class);
-                Result<List<Item>> objects = csvToBean(Item.class, path);
+                Result<List<Item>> objects = xmlToBean(Item.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -537,11 +544,11 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
                 String path = getPath(User.class);
-                Result<List<User>> objects = csvToBean(User.class, path);
+                Result<List<User>> objects = xmlToBean(User.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -571,15 +578,15 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_CART);
             } else if(getUserById(userId).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_USER_ID);
-            } else if(!(new HashSet<>(csvToBean(Item.class, getPath(Item.class)).getObject()).containsAll(itemList))){
+            } else if(!(new HashSet<>(xmlToBean(Item.class, getPath(Item.class)).getObject()).containsAll(itemList))){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_ITEM_LIST);
             } else {
                 String path = getPath(Cart.class);
-                Result<List<Cart>> objects = csvToBean(Cart.class, path);
+                Result<List<Cart>> objects = xmlToBean(Cart.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -615,11 +622,11 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
                 String path = getPath(GiftCertificate.class);
-                Result<List<GiftCertificate>> objects = csvToBean(GiftCertificate.class, path);
+                Result<List<GiftCertificate>> objects = xmlToBean(GiftCertificate.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -655,11 +662,11 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_DISCOUNT_PERCENT);
             } else {
                 String path = getPath(PromoCode.class);
-                Result<List<PromoCode>> objects = csvToBean(PromoCode.class, path);
+                Result<List<PromoCode>> objects = xmlToBean(PromoCode.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -695,11 +702,11 @@ public class DataProviderCsv implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_PRICE);
             } else {
                 String path = getPath(Order.class);
-                Result<List<Order>> objects = csvToBean(Order.class, path);
+                Result<List<Order>> objects = xmlToBean(Order.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
                     objects.getObject().add(object);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -728,21 +735,21 @@ public class DataProviderCsv implements IDataProvider{
             if (object.isPresent()) {
                 final Item item = object.get();
                 String path = getPath(Item.class);
-                Result<List<Item>> objects = csvToBean(Item.class, path);
+                Result<List<Item>> objects = xmlToBean(Item.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object.get());
 
                     if (result.getStatus().equals(Status.SUCCESS)){
                         String pathCart = getPath(Cart.class);
-                        Result<List<Cart>> objectsCart = csvToBean(Cart.class, pathCart);
+                        Result<List<Cart>> objectsCart = xmlToBean(Cart.class, pathCart);
                         if (objectsCart.getStatus().equals(Status.SUCCESS)){
-                            Optional<Cart> cart = (csvToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
+                            Optional<Cart> cart = (xmlToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
                             Result<Cart> resultCart = new Result<>(Status.SUCCESS);
                             while (cart.isPresent() && resultCart.getStatus().equals(Status.SUCCESS)) {
                                 resultCart = deleteCart(cart.get().getId());
-                                cart = (csvToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
+                                cart = (xmlToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
                             }
                             if (resultCart.getStatus().equals(Status.FAULT)){
                                 result = new Result<>(Status.FAULT, resultCart.getMessage());
@@ -779,21 +786,21 @@ public class DataProviderCsv implements IDataProvider{
             final String className = User.class.getSimpleName();
             if (object.isPresent()) {
                 String path = getPath(User.class);
-                Result<List<User>> objects = csvToBean(User.class, path);
+                Result<List<User>> objects = xmlToBean(User.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object.get());
 
                     if (result.getStatus().equals(Status.SUCCESS)){
                         String pathCart = getPath(Cart.class);
-                        Result<List<Cart>> objectsCart = csvToBean(Cart.class, pathCart);
+                        Result<List<Cart>> objectsCart = xmlToBean(Cart.class, pathCart);
                         if (objectsCart.getStatus().equals(Status.SUCCESS)){
-                            Optional<Cart> cart = (csvToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getUserId() == id).findFirst());
+                            Optional<Cart> cart = (xmlToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getUserId() == id).findFirst());
                             Result<Cart> resultCart = new Result<>(Status.SUCCESS);
                             while (cart.isPresent() && resultCart.getStatus().equals(Status.SUCCESS)) {
                                 resultCart = deleteCart(cart.get().getId());
-                                cart = (csvToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getUserId() == id).findFirst());
+                                cart = (xmlToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getUserId() == id).findFirst());
                             }
                             if (resultCart.getStatus().equals(Status.FAULT)){
                                 result = new Result<>(Status.FAULT, resultCart.getMessage());
@@ -830,19 +837,19 @@ public class DataProviderCsv implements IDataProvider{
             final String className = Cart.class.getSimpleName();
             if (object.isPresent()) {
                 String path = getPath(Cart.class);
-                Result<List<Cart>> objects = csvToBean(Cart.class, path);
+                Result<List<Cart>> objects = xmlToBean(Cart.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object.get());
 
                     if (result.getStatus().equals(Status.SUCCESS)){
                         String pathOrder = getPath(Order.class);
-                        Result<List<Order>> objectsOrder = csvToBean(Order.class, pathOrder);
+                        Result<List<Order>> objectsOrder = xmlToBean(Order.class, pathOrder);
                         if (objectsOrder.getStatus().equals(Status.SUCCESS)){
                             List<Order> orders = objectsOrder.getObject();
                             orders.removeIf(o -> o.getCartId() == id);
-                            Result<Order> resultOrder = beanToCsv(orders, Order.class.getSimpleName(), pathOrder);
+                            Result<Order> resultOrder = beanToXml(orders, Order.class.getSimpleName(), pathOrder);
                             if (resultOrder.getStatus().equals(Status.FAULT)){
                                 result = new Result<>(Status.FAULT, resultOrder.getMessage());
                             }
@@ -878,19 +885,19 @@ public class DataProviderCsv implements IDataProvider{
             final String className = GiftCertificate.class.getSimpleName();
             if (object.isPresent()) {
                 String path = getPath(GiftCertificate.class);
-                Result<List<GiftCertificate>> objects = csvToBean(GiftCertificate.class, path);
+                Result<List<GiftCertificate>> objects = xmlToBean(GiftCertificate.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object.get());
 
                     if (result.getStatus().equals(Status.SUCCESS)){
                         String pathOrder = getPath(Order.class);
-                        Result<List<Order>> objectsOrder = csvToBean(Order.class, pathOrder);
+                        Result<List<Order>> objectsOrder = xmlToBean(Order.class, pathOrder);
                         if (objectsOrder.getStatus().equals(Status.SUCCESS)){
                             List<Order> orders = objectsOrder.getObject();
                             orders.removeIf(o -> o.getDiscountCodeId() == id);
-                            Result<Order> resultOrder = beanToCsv(orders, Order.class.getSimpleName(), pathOrder);
+                            Result<Order> resultOrder = beanToXml(orders, Order.class.getSimpleName(), pathOrder);
                             if (resultOrder.getStatus().equals(Status.FAULT)){
                                 result = new Result<>(Status.FAULT, resultOrder.getMessage());
                             }
@@ -926,19 +933,19 @@ public class DataProviderCsv implements IDataProvider{
             final String className = PromoCode.class.getSimpleName();
             if (object.isPresent()) {
                 String path = getPath(PromoCode.class);
-                Result<List<PromoCode>> objects = csvToBean(PromoCode.class, path);
+                Result<List<PromoCode>> objects = xmlToBean(PromoCode.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object.get());
 
                     if (result.getStatus().equals(Status.SUCCESS)){
                         String pathOrder = getPath(Order.class);
-                        Result<List<Order>> objectsOrder = csvToBean(Order.class, pathOrder);
+                        Result<List<Order>> objectsOrder = xmlToBean(Order.class, pathOrder);
                         if (objectsOrder.getStatus().equals(Status.SUCCESS)){
                             List<Order> orders = objectsOrder.getObject();
                             orders.removeIf(o -> o.getDiscountCodeId() == id);
-                            Result<Order> resultOrder = beanToCsv(orders, Order.class.getSimpleName(), pathOrder);
+                            Result<Order> resultOrder = beanToXml(orders, Order.class.getSimpleName(), pathOrder);
                             if (resultOrder.getStatus().equals(Status.FAULT)){
                                 result = new Result<>(Status.FAULT, resultOrder.getMessage());
                             }
@@ -974,10 +981,10 @@ public class DataProviderCsv implements IDataProvider{
             final String className = Order.class.getSimpleName();
             if (object.isPresent()) {
                 String path = getPath(Order.class);
-                Result<List<Order>> objects = csvToBean(Order.class, path);
+                Result<List<Order>> objects = xmlToBean(Order.class, path);
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToCsv(objects.getObject(), className, path);
+                    result = beanToXml(objects.getObject(), className, path);
                     result.setObject(object.get());
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -1009,7 +1016,7 @@ public class DataProviderCsv implements IDataProvider{
         try {
             Result<Cart> result;
             String pathOrder = getPath(Order.class);
-            Result<List<Order>> orderList = csvToBean(Order.class, pathOrder);
+            Result<List<Order>> orderList = xmlToBean(Order.class, pathOrder);
             if (orderList.getStatus().equals(Status.SUCCESS)){
                 Optional<Cart> cart = getCartById(cartId);
                 if (cart.isPresent()) {
@@ -1054,10 +1061,10 @@ public class DataProviderCsv implements IDataProvider{
             Result<List<Cart>> result;
             if (getUserById(userId).isPresent()){
                 String pathOrder = getPath(Order.class);
-                Result<List<Order>> orderList = csvToBean(Order.class, pathOrder);
+                Result<List<Order>> orderList = xmlToBean(Order.class, pathOrder);
                 if (orderList.getStatus().equals(Status.SUCCESS)){
                     String pathCart = getPath(Cart.class);
-                    Result<List<Cart>> cartList = csvToBean(Cart.class, pathCart);
+                    Result<List<Cart>> cartList = xmlToBean(Cart.class, pathCart);
                     if (cartList.getStatus().equals(Status.SUCCESS)){
                         List<Cart> userCarts = cartList.getObject().stream()
                                 .filter(o -> o.getUserId() == userId).collect(Collectors.toList());
@@ -1100,7 +1107,7 @@ public class DataProviderCsv implements IDataProvider{
             Optional<Cart> cart = getCartById(cartId);
             if (cart.isPresent()){
                 String pathOrder = getPath(Order.class);
-                Result<List<Order>> orderList = csvToBean(Order.class, pathOrder);
+                Result<List<Order>> orderList = xmlToBean(Order.class, pathOrder);
                 if (orderList.getStatus().equals(Status.SUCCESS)){
                     if(orderList.getObject().stream().filter(o -> o.getCartId() == cartId).findAny().isEmpty()){
                         result = updateCart(cartId, cart.get().getUserId(), new ArrayList<>());
@@ -1166,7 +1173,7 @@ public class DataProviderCsv implements IDataProvider{
             Result<? extends DiscountCode> result;
             long newPrice;
             String pathPromoCode = getPath(PromoCode.class);
-            Result<List<PromoCode>> promoCodes = csvToBean(PromoCode.class, pathPromoCode);
+            Result<List<PromoCode>> promoCodes = xmlToBean(PromoCode.class, pathPromoCode);
             if (promoCodes.getStatus().equals(Status.SUCCESS)){
                 Optional<PromoCode> promoCode = promoCodes.getObject().stream()
                         .filter(o -> Objects.equals(o.getName(), discountCode)).findFirst();
@@ -1179,7 +1186,7 @@ public class DataProviderCsv implements IDataProvider{
                     }
                 } else {
                     String pathGiftCertificate = getPath(GiftCertificate.class);
-                    Result<List<GiftCertificate>> giftCertificates = csvToBean(GiftCertificate.class, pathGiftCertificate);
+                    Result<List<GiftCertificate>> giftCertificates = xmlToBean(GiftCertificate.class, pathGiftCertificate);
                     if (giftCertificates.getStatus().equals(Status.SUCCESS)){
                         Optional<GiftCertificate> giftCertificate = giftCertificates.getObject().stream()
                                 .filter(o -> Objects.equals(o.getName(), discountCode)).findFirst();
@@ -1315,3 +1322,4 @@ public class DataProviderCsv implements IDataProvider{
         }
     }
 }
+

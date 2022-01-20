@@ -2,16 +2,24 @@ package ru.sfedu.comicsShop.model;
 
 import com.opencsv.bean.CsvBindByName;
 import com.opencsv.bean.CsvCustomBindByName;
+import org.simpleframework.xml.Attribute;
+import org.simpleframework.xml.Element;
+import org.simpleframework.xml.ElementList;
+import org.simpleframework.xml.Root;
 import ru.sfedu.comicsShop.utils.Converter;
 
 import java.util.List;
 import java.util.Objects;
 
+@Root
 public class Cart {
+    @Attribute
     @CsvBindByName(column = "id")
     private long id;
+    @Element
     @CsvBindByName(column = "userId")
     private long userId;
+    @ElementList
     @CsvCustomBindByName(converter = Converter.class)
     private List<Item> itemList;
 

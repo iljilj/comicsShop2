@@ -3,21 +3,31 @@ package ru.sfedu.comicsShop;
 public class Constants {
 
 
-    public static final String TEST_USER1 = "userId1";
-    public static final String TEST_USER2 = "userId2";
-    public static final String TEST_USER3 = "userId3";
-    public static final String TEST_ITEM1 = "itemId1";
-    public static final String TEST_ITEM2 = "itemId2";
-    public static final String TEST_ITEM3 = "itemId3";
-    public static final String TEST_ITEM4 = "itemId4";
-    public static final String TEST_CART1 = "cartId1";
-    public static final String TEST_CART2 = "cartId2";
-    public static final String TEST_CART3 = "cartId3";
-    public static final String TEST_GIFT_CERTIFICATE1 = "giftCertificateId1";
-    public static final String TEST_PROMO_CODE1 = "giftPromoCdeId1";
-    public static final String TEST_ORDER1 = "giftOrder1";
-    public static final String TEST_ORDER2 = "giftOrder2";
-    public static final String TEST_ORDER3 = "giftOrder3";
+    public static final String MESSAGE_NO_SUCH_USER = "No such user";
+    public static final String MESSAGE_NO_SUCH_CART = "No such cart";
+    public static final String MESSAGE_NO_SUCH_ORDER = "No such order";
+    public static final String MESSAGE_NO_SUCH_ITEM = "No such item";
+    public static final String MESSAGE_NO_SUCH_PROMO_CODE = "No such promoCode";
+    public static final String MESSAGE_NO_SUCH_GIFT_CERTIFICATE = "No such giftCertificate";
+    public static final String MESSAGE_NO_SUCH_DISCOUNT_CODE = "No such discountCode";
+
+    public static final String MESSAGE_INVALID_PRICE = "Invalid price";
+    public static final String MESSAGE_INVALID_AMOUNT = "Invalid amount";
+    public static final String MESSAGE_INVALID_USER_ID = "Invalid userId (such user does not exist)";
+    public static final String MESSAGE_INVALID_ITEM_LIST = "Invalid itemList (not all items exist)";
+    public static final String MESSAGE_INVALID_DISCOUNT_TOTAL = "Invalid DiscountTotal (must be positive)";
+    public static final String MESSAGE_INVALID_MIN_TOTAL_PRICE = "Invalid minTotalPrice (must be positive";
+    public static final String MESSAGE_INVALID_DISCOUNT_PERCENT = "Invalid discountPercent (must be 0 < discountPercent < 100)";
+    public static final String MESSAGE_INVALID_DISCOUNT_CODE = "DiscountCodeId cannot be equal 0";
+
+    public static final String MESSAGE_CART_IN_ORDER = "Cart in order cannot be changed";
+    public static final String MESSAGE_SUCCESSFUL_SAVE = "Objects were saved successfully";
+    public static final String MESSAGE_SUCCESSFUL_READ = "Objects were read successfully";
+    public static final String MESSAGE_SUCH_ID_EXISTS = "Object with such id already exists";
+
+    public static final String MESSAGE_PROMO_CODE_CANNOT_BE_APPLIED = "Promo code cannot be applied";
+    public static final String MESSAGE_GIFT_CERTIFICATE_CANNOT_BE_APPLIED = "Gift certificat cannot be applied";
+    public static final String MESSAGE_CART_CANNOT_BE_EMPTY = "Cart cannot be empty";
 
 
 

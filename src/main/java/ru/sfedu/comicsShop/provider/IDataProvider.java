@@ -42,7 +42,7 @@ public interface IDataProvider {
     Result<Cart> createEmptyCart(long userId);
     Result<Cart> addItemToCart(long cartId, String name, long price, int amount);
     Result<List<Cart>> showAllCarts(long userId); //список корзин которых нет в заказах?
-    Result<List<Cart>> emptyCart(long userId); //очистить корзины пользователя которых нет в заказах?
+    Result<Cart> emptyCart(long cartId); //очистить корзины пользователя которых нет в заказах?
 
     long countPrice(long cartId);
     Result<? extends DiscountCode> makeDiscount(long userId, String discountCode, long price);

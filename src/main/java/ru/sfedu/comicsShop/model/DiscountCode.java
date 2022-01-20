@@ -1,14 +1,21 @@
 package ru.sfedu.comicsShop.model;
 
 import com.opencsv.bean.CsvBindByName;
+import org.simpleframework.xml.Attribute;
+import org.simpleframework.xml.Element;
+import org.simpleframework.xml.Root;
 
 import java.util.Objects;
 
+@Root
 public abstract class DiscountCode {
+    @Attribute
     @CsvBindByName(column = "id")
     private long id;
+    @Element
     @CsvBindByName(column = "name")
     private String name;
+    @Element
     @CsvBindByName(column = "currentlyAvailable")
     private boolean currentlyAvailable;
 

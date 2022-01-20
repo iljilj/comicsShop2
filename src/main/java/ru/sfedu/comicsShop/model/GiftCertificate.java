@@ -1,12 +1,17 @@
 package ru.sfedu.comicsShop.model;
 
 import com.opencsv.bean.CsvBindByName;
+import org.simpleframework.xml.Element;
+import org.simpleframework.xml.Root;
 
 import java.util.Objects;
 
+@Root
 public class GiftCertificate extends DiscountCode{
+    @Element
     @CsvBindByName(column = "discountTotal")
     private long discountTotal;
+    @Element
     @CsvBindByName(column = "userId")
     private long userId;
 

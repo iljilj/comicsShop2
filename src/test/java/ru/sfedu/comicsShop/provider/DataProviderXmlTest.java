@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static ru.sfedu.comicsShop.utils.ConfigurationUtil.getConfigurationEntry;
 
 
-public class DataProviderCsvTest{
-    DataProviderCsv provider = new DataProviderCsv();
+public class DataProviderXmlTest{
+    DataProviderXml provider = new DataProviderXml();
 
     long user1, user2, user3;
     long item1, item2, item3, item4;

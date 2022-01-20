@@ -1,16 +1,24 @@
 package ru.sfedu.comicsShop.model;
 
 import com.opencsv.bean.CsvBindByName;
+import org.simpleframework.xml.Attribute;
+import org.simpleframework.xml.Element;
+import org.simpleframework.xml.Root;
 
 import java.util.Objects;
 
+@Root
 public class Item {
+    @Attribute
     @CsvBindByName(column = "id")
     private long id;
+    @Element
     @CsvBindByName(column = "name")
     private String name;
+    @Element
     @CsvBindByName(column = "price")
     private long price;
+    @Element
     @CsvBindByName(column = "amount")
     private int amount;
 
