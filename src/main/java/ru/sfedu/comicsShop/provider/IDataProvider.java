@@ -13,7 +13,7 @@ public interface IDataProvider {
     Result<User> saveUser(String firstName, String secondName, String phoneNumber);
     Result<Cart> saveCart(long userId, List<Item> itemList);
     Result<GiftCertificate> saveGiftCertificate(String name, boolean currentlyAvailable, long discountTotal, long userId);
-    Result<PromoCode> savePromoCode(String name, boolean currentlyAvailable, long minTotalPrice, long discountPrice);
+    Result<PromoCode> savePromoCode(String name, boolean currentlyAvailable, long minTotalPrice, long discountPercent);
     Result<Order> saveOrder(String address, long cartId, long discountCodeId, long price);
 
     Optional<Item> getItemById(long id);
@@ -27,7 +27,8 @@ public interface IDataProvider {
     Result<User> updateUser(long id, String firstName, String secondName, String phoneNumber);
     Result<Cart> updateCart(long id, long userId, List<Item> itemList);
     Result<GiftCertificate> updateGiftCertificate(long id, String name, boolean currentlyAvailable, long discountTotal, long userId);
-    Result<PromoCode> updatePromoCode(long id, String name, boolean currentlyAvailable, long minTotalPrice, long discountPrice);
+    //1111
+    Result<PromoCode> updatePromoCode(long id, String name, boolean currentlyAvailable, long minTotalPrice, long discountPercent);
     Result<Order> updateOrder(long id, String address, long cartId, long discountCodeId, long price);
 
     Result<Item> deleteItem(long id);

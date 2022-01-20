@@ -27,6 +27,14 @@ public class Result<T> {
         this.status = status;
     }
 
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
     //!!!
     public Result(Status status, T data, long newPrice){
         this.status = status;
