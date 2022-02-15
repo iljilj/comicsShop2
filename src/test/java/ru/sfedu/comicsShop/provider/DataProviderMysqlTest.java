@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static ru.sfedu.comicsShop.utils.ConfigurationUtil.getConfigurationEntry;
 
 
-public class DataProviderCsvTest{
-    DataProviderCsv provider = new DataProviderCsv();
+public class DataProviderMysqlTest{
+    DataProviderMysql provider = new DataProviderMysql();
 
     long user1, user2, user3;
     long item1, item2, item3, item4;
@@ -52,6 +52,9 @@ public class DataProviderCsvTest{
         itemList3 = new ArrayList<>();
         itemList3.add(new Item(item4, "Bakuman, all volumes", 5000, 1));
 
+        System.out.println(234567);
+        System.out.println(provider.saveCart(user1, itemList1).getObject());
+        System.out.println(78976);
         cart1 = provider.saveCart(user1, itemList1).getObject().getId();
         cart2 = provider.saveCart(user2, itemList2).getObject().getId();
         cart3 = provider.saveCart(user3, itemList3).getObject().getId();
@@ -113,7 +116,6 @@ public class DataProviderCsvTest{
         provider.deleteUser(user2);
         provider.deleteUser(user3);
     }
-
 
     @Test
     public void testItem(){

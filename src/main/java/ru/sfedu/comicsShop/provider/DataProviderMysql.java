@@ -1,98 +1,171 @@
 package ru.sfedu.comicsShop.provider;
 
-import com.opencsv.bean.CsvToBeanBuilder;
-import com.opencsv.bean.StatefulBeanToCsv;
-import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.simpleframework.xml.Serializer;
-import org.simpleframework.xml.core.Persister;
 import ru.sfedu.comicsShop.Constants;
 import ru.sfedu.comicsShop.model.*;
 import ru.sfedu.comicsShop.utils.HistoryContent;
 import ru.sfedu.comicsShop.utils.Result;
+import ru.sfedu.comicsShop.utils.SqlUtil;
 import ru.sfedu.comicsShop.utils.Status;
-import ru.sfedu.comicsShop.utils.XmlUtil;
 
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.Writer;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static ru.sfedu.comicsShop.Constants.DEFAULT_ACTOR;
-import static ru.sfedu.comicsShop.utils.ConfigurationUtil.getConfigurationEntry;
+import static ru.sfedu.comicsShop.Constants.*;
 import static ru.sfedu.comicsShop.utils.HistoryUtil.saveHistory;
 
-public class DataProviderXml implements IDataProvider{
-    private static final Logger log = LogManager.getLogger(DataProviderXml.class.getName());
-
-    private <T> Result<T> beanToXml(List<T> objects, String className, String path) {
-        final String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
-        log.debug(methodName);
-        try {
-            Writer writer = new FileWriter(getConfigurationEntry(path));
-            Serializer serializer = new Persister();
-            XmlUtil<T> container = new XmlUtil<>(objects);
-            serializer.write(container, writer);
-            writer.close();
-            HistoryContent historyContent = createHistoryContent(className, methodName, objects, Status.SUCCESS);
-            saveHistory(historyContent);
-            return new Result<>(Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
-        }catch (Exception e){
-            log.error(e);
-            HistoryContent historyContent = createHistoryContent(className, methodName, null, Status.FAULT);
-            saveHistory(historyContent);
-            return new Result<>(Status.FAULT, e.getMessage());
-        }
-    }
-
-    public static <T> Result<List<T>> xmlToBean(Class<T> tClass, String path) {
-        final String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
-        log.debug(methodName);
-        try {
-            FileReader fileReader = new FileReader(getConfigurationEntry(path));
-            Serializer serializer = new Persister();
-            XmlUtil<T> container = serializer.read(XmlUtil.class, fileReader);
-            final List<T> objects = container.getList();
-            fileReader.close();
-            HistoryContent historyContent = createHistoryContent(tClass.getSimpleName(), methodName, objects, Status.SUCCESS);
-            saveHistory(historyContent);
-            return new Result<>(objects, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
-        }catch (java.io.FileNotFoundException e){
-            HistoryContent historyContent = createHistoryContent(tClass.getSimpleName(), methodName, new ArrayList<>(), Status.SUCCESS);
-            saveHistory(historyContent);
-            return new Result<>(new ArrayList<>(), Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
-        }catch (Exception e){
-            log.error(e);
-            HistoryContent historyContent = createHistoryContent(tClass.getSimpleName(), methodName, null, Status.FAULT);
-            saveHistory(historyContent);
-            return new Result<>(new ArrayList<>(), Status.FAULT, e.getMessage());
-        }
-    }
+public class DataProviderMysql implements IDataProvider {
+    private static final Logger log = LogManager.getLogger(DataProviderMysql.class.getName());
+    private static final Connection connection = SqlUtil.connectToMySql();
 
     private static <T> HistoryContent createHistoryContent(String className, String methodName, T object, Status status) {
-        return new HistoryContent(new Date().getTime(), className, new Date().toString(), DEFAULT_ACTOR, methodName, object, status);
+        return new HistoryContent(new java.util.Date().getTime(), className, new Date().toString(), DEFAULT_ACTOR, methodName, object, status);
     }
 
-    private static <T> String getPath(Class<T> tClass) {
-        String path = switch (tClass.getSimpleName()) {
-            case "Item" -> Constants.ITEM_XML;
-            case "User" -> Constants.USER_XML;
-            case "Cart" -> Constants.CART_XML;
-            case "GiftCertificate" -> Constants.GIFT_CERTIFICATE_XML;
-            case "PromoCode" -> Constants.PROMO_CODE_XML;
-            case "Order" -> Constants.ORDER_XML;
-            default -> "";
-        };
-        return path;
+    public Result<List<Item>> selectItem(){
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        log.debug(methodName);
+        try {
+            ResultSet resultSet = connection.prepareStatement(SELECT_SQL+Item.class.getSimpleName()).executeQuery();
+            List<Item> objects = new ArrayList<>();
+            while(resultSet.next()) {
+                objects.add(new Item(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getLong(3), resultSet.getInt(4)));
+            }
+            HistoryContent historyContent = createHistoryContent(Item.class.getSimpleName(), methodName, objects, Status.SUCCESS);
+            saveHistory(historyContent);
+            return new Result<>(objects, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(Item.class.getSimpleName(), methodName, null, Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(new ArrayList<>(), Status.SUCCESS, e.getMessage());
+        }
     }
+
+    public Result<List<User>> selectUser(){
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        log.debug(methodName);
+        try {
+            ResultSet resultSet = connection.prepareStatement(SELECT_SQL+User.class.getSimpleName()).executeQuery();
+            List<User> objects = new ArrayList<>();
+            while(resultSet.next()) {
+                objects.add(new User(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getString(3), resultSet.getString(4)));
+            }
+            HistoryContent historyContent = createHistoryContent(User.class.getSimpleName(), methodName, objects, Status.SUCCESS);
+            saveHistory(historyContent);
+            return new Result<>(objects, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(User.class.getSimpleName(), methodName, null, Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(new ArrayList<>(), Status.SUCCESS, e.getMessage());
+        }
+    }
+
+    public Result<List<Cart>> selectCart(){
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        log.debug(methodName);
+        try {
+            ResultSet resultSet = connection.prepareStatement(SELECT_SQL+Cart.class.getSimpleName()).executeQuery();
+            List<Cart> objects = new ArrayList<>();
+            List<String> itemIdList;
+            List<Item> itemList;
+            Item item;
+            while(resultSet.next()) {
+                itemIdList = Arrays.stream(resultSet.getString(3).split("_")).toList();
+                itemList = new ArrayList<>();
+                for (String idStr : itemIdList){
+                    item = getItemById(Long.parseLong(idStr)).orElse(new Item());
+                    itemList.add(item);
+                }
+                objects.add(new Cart(resultSet.getLong(1), resultSet.getLong(2), itemList));
+            }
+            HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(), methodName, objects, Status.SUCCESS);
+            saveHistory(historyContent);
+            return new Result<>(objects, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(), methodName, null, Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(new ArrayList<>(), Status.SUCCESS, e.getMessage());
+        }
+    }
+
+    public Result<List<Order>> selectOrder(){
+        final String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
+        try {
+            ResultSet resultSet = connection.prepareStatement(SELECT_SQL+Order.class.getSimpleName()+"_").executeQuery();
+            List<Order> objects = new ArrayList<>();
+            while(resultSet.next()) {
+                objects.add(new Order(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getLong(3), resultSet.getLong(4),
+                        resultSet.getLong(5)));
+            }
+            HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(), methodName, objects, Status.SUCCESS);
+            saveHistory(historyContent);
+            return new Result<>(objects, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(), methodName, null, Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(new ArrayList<>(), Status.SUCCESS, e.getMessage());
+        }
+    }
+
+    public static Result<List<PromoCode>> selectPromoCode(){
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        log.debug(methodName);
+        try {
+            ResultSet resultSet = connection.prepareStatement(SELECT_SQL+PromoCode.class.getSimpleName()).executeQuery();
+            List<PromoCode> objects = new ArrayList<>();
+            while(resultSet.next()) {
+                objects.add(new PromoCode(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getBoolean(3), resultSet.getLong(4), resultSet.getLong(5)));
+            }
+            HistoryContent historyContent = createHistoryContent(PromoCode.class.getSimpleName(), methodName, objects, Status.SUCCESS);
+            saveHistory(historyContent);
+            return new Result<>(objects, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(PromoCode.class.getSimpleName(), methodName, null, Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(new ArrayList<>(), Status.SUCCESS, e.getMessage());
+        }
+    }
+
+    public static Result<List<GiftCertificate>> selectGiftCertificate(){
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+        log.debug(methodName);
+        try {
+            ResultSet resultSet = connection.prepareStatement(SELECT_SQL+GiftCertificate.class.getSimpleName()).executeQuery();
+            List<GiftCertificate> objects = new ArrayList<>();
+            while(resultSet.next()) {
+                objects.add(new GiftCertificate(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getBoolean(3), resultSet.getLong(4),  resultSet.getLong(5)));
+            }
+            HistoryContent historyContent = createHistoryContent(GiftCertificate.class.getSimpleName(), methodName, objects, Status.SUCCESS);
+            saveHistory(historyContent);
+            return new Result<>(objects, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
+        } catch (Exception e){
+            log.error(e);
+            HistoryContent historyContent = createHistoryContent(GiftCertificate.class.getSimpleName(), methodName, null, Status.FAULT);
+            saveHistory(historyContent);
+            return new Result<>(new ArrayList<>(), Status.SUCCESS, e.getMessage());
+        }
+    }
+
     @Override
     public Result<Item> saveItem(String name, long price, int amount) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
-            final long id = UUID.randomUUID().getMostSignificantBits() % 1000000000;
+            final long id = UUID.randomUUID().getMostSignificantBits() % 100000;
             Item object = new Item(id, name, price, amount);
             final String className = object.getClass().getSimpleName();
             Result<Item> result;
@@ -103,12 +176,17 @@ public class DataProviderXml implements IDataProvider{
             } else if (amount <= 0) {
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_AMOUNT);
             } else {
-                String path = getPath(Item.class);
-                Result<List<Item>> objects = xmlToBean(Item.class, path);
+                Result<List<Item>> objects = selectItem();
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate("insert into item value (" +
+                                id + ", '" +
+                                name + "', " +
+                                price + ", " +
+                                amount + ");");
+                    System.out.println(2);
+                    result = new Result<>(object, Status.SUCCESS);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
@@ -130,25 +208,30 @@ public class DataProviderXml implements IDataProvider{
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
-            final long id = UUID.randomUUID().getMostSignificantBits() % 1000000000;
+            final long id = UUID.randomUUID().getMostSignificantBits() % 100000;
             User object = new User(id, firstName, secondName, phoneNumber);
             final String className = object.getClass().getSimpleName();
             Result<User> result;
             if(getUserById(id).isPresent()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_SUCH_ID_EXISTS);
             } else {
-                String path = getPath(User.class);
-                Result<List<User>> objects = xmlToBean(User.class, path);
+                Result<List<User>> objects = selectUser();
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate("insert into user value (" +
+                            id + ", '" +
+                            firstName + "', '" +
+                            secondName + "', '" +
+                            phoneNumber + "');");
+                    result = new Result<>(object, Status.SUCCESS);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
+            System.out.println(result.getObject());
             return result;
         }catch(Exception e){
             log.error(e);
@@ -164,7 +247,15 @@ public class DataProviderXml implements IDataProvider{
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
-            final long id = UUID.randomUUID().getMostSignificantBits() % 1000000000;
+            StringBuilder items = new StringBuilder("");
+            for (Item i : itemList){
+                items.append(i.getId());
+                items.append("_");
+            }
+
+            items.delete(items.length()-1, items.length());
+            log.info(items);
+            final long id = UUID.randomUUID().getMostSignificantBits() % 100000;
             Cart object = new Cart(id, userId, itemList);
             final String className = object.getClass().getSimpleName();
             Result<Cart> result;
@@ -172,18 +263,21 @@ public class DataProviderXml implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_SUCH_ID_EXISTS);
             } else if(getUserById(userId).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_USER_ID);
-            } else if(!(new HashSet<>(xmlToBean(Item.class, getPath(Item.class)).getObject()).containsAll(itemList))){
+            } else if(!(new HashSet<>(selectItem().getObject()).containsAll(itemList))){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_ITEM_LIST);
             } else {
-                String path = getPath(Cart.class);
-                Result<List<Cart>> objects = xmlToBean(Cart.class, path);
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
+                Statement statement = connection.createStatement();
+                if (items.isEmpty()){
+                    statement.executeUpdate("insert into cart value (" +
+                            id + ", " +
+                            userId + ", null);");
                 } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
+                    statement.executeUpdate("insert into cart value (" +
+                            id + ", " +
+                            userId + ", '" +
+                            items + "');");
                 }
+                result = new Result<>(object, Status.SUCCESS);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -202,7 +296,7 @@ public class DataProviderXml implements IDataProvider{
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
-            final long id = UUID.randomUUID().getMostSignificantBits() % 1000000000;
+            final long id = UUID.randomUUID().getMostSignificantBits() % 100000;
             GiftCertificate object = new GiftCertificate(id, name, currentlyAvailable, discountTotal, userId);
             final String className = object.getClass().getSimpleName();
             Result<GiftCertificate> result;
@@ -217,12 +311,17 @@ public class DataProviderXml implements IDataProvider{
             } else if(getUserById(userId).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
-                String path = getPath(GiftCertificate.class);
-                Result<List<GiftCertificate>> objects = xmlToBean(GiftCertificate.class, path);
+                Result<List<GiftCertificate>> objects = selectGiftCertificate();
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate("insert into giftcertificate value (" +
+                            id + ", '" +
+                            name + "', " +
+                            currentlyAvailable + ", " +
+                            discountTotal + ", " +
+                            userId + ");");
+                    result = new Result<>(object, Status.SUCCESS);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
@@ -244,7 +343,7 @@ public class DataProviderXml implements IDataProvider{
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
-            final long id = UUID.randomUUID().getMostSignificantBits() % 1000000000;
+            final long id = UUID.randomUUID().getMostSignificantBits() % 100000;
             PromoCode object = new PromoCode(id, name, currentlyAvailable, minTotalPrice, discountPercent);
             final String className = object.getClass().getSimpleName();
             Result<PromoCode> result;
@@ -259,12 +358,17 @@ public class DataProviderXml implements IDataProvider{
             } else if(discountPercent <= 0 || discountPercent >= 100){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_DISCOUNT_PERCENT);
             } else {
-                String path = getPath(PromoCode.class);
-                Result<List<PromoCode>> objects = xmlToBean(PromoCode.class, path);
+                Result<List<PromoCode>> objects = selectPromoCode();
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate("insert into promocode value (" +
+                            id + ", '" +
+                            name + "', " +
+                            currentlyAvailable + ", " +
+                            minTotalPrice + ", " +
+                            discountPercent + ");");
+                    result = new Result<>(object, Status.SUCCESS);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
@@ -286,7 +390,7 @@ public class DataProviderXml implements IDataProvider{
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
-            final long id = UUID.randomUUID().getMostSignificantBits() % 1000000000;
+            final long id = UUID.randomUUID().getMostSignificantBits() % 100000;
             Order object = new Order(id, address, cartId, discountCodeId, price);
             final String className = object.getClass().getSimpleName();
             Result<Order> result;
@@ -299,13 +403,18 @@ public class DataProviderXml implements IDataProvider{
             } else if(price <= 0){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_PRICE);
             } else {
-                String path = getPath(Order.class);
-                Result<List<Order>> objects = xmlToBean(Order.class, path);
+                Result<List<Order>> objects = selectOrder();
                 if (objects.getStatus().equals(Status.SUCCESS)){
                     objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
-                } else {
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate("insert into order_ value (" +
+                            id + ", '" +
+                            address + "', " +
+                            cartId + ", " +
+                            discountCodeId + ", " +
+                            price + ");");
+                    result = new Result<>(object, Status.SUCCESS);
+                }  else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
             }
@@ -327,8 +436,7 @@ public class DataProviderXml implements IDataProvider{
         log.debug(methodName);
         try {
             Status status = Status.FAULT;
-            String path = getPath(Item.class);
-            Result<List<Item>> objects = xmlToBean(Item.class, path);
+            Result<List<Item>> objects = selectItem();
             Optional<Item> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -348,15 +456,13 @@ public class DataProviderXml implements IDataProvider{
             return Optional.empty();
         }
     }
-
     @Override
     public Optional<User> getUserById(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
             Status status = Status.FAULT;
-            String path = getPath(User.class);
-            Result<List<User>> objects = xmlToBean(User.class, path);
+            Result<List<User>> objects = selectUser();
             Optional<User> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -383,8 +489,7 @@ public class DataProviderXml implements IDataProvider{
         log.debug(methodName);
         try {
             Status status = Status.FAULT;
-            String path = getPath(Cart.class);
-            Result<List<Cart>> objects = xmlToBean(Cart.class, path);
+            Result<List<Cart>> objects = selectCart();
             Optional<Cart> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -411,8 +516,7 @@ public class DataProviderXml implements IDataProvider{
         log.debug(methodName);
         try {
             Status status = Status.FAULT;
-            String path = getPath(GiftCertificate.class);
-            Result<List<GiftCertificate>> objects = xmlToBean(GiftCertificate.class, path);
+            Result<List<GiftCertificate>> objects = selectGiftCertificate();
             Optional<GiftCertificate> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -439,8 +543,7 @@ public class DataProviderXml implements IDataProvider{
         log.debug(methodName);
         try {
             Status status = Status.FAULT;
-            String path = getPath(PromoCode.class);
-            Result<List<PromoCode>> objects = xmlToBean(PromoCode.class, path);
+            Result<List<PromoCode>> objects = selectPromoCode();
             Optional<PromoCode> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -467,8 +570,7 @@ public class DataProviderXml implements IDataProvider{
         log.debug(methodName);
         try {
             Status status = Status.FAULT;
-            String path = getPath(Order.class);
-            Result<List<Order>> objects = xmlToBean(Order.class, path);
+            Result<List<Order>> objects = selectOrder();
             Optional<Order> object = Optional.empty();
             if (objects.getStatus().equals(Status.SUCCESS)){
                 object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
@@ -488,7 +590,6 @@ public class DataProviderXml implements IDataProvider{
             return Optional.empty();
         }
     }
-
     @Override
     public Result<Item> updateItem(long id, String name, long price, int amount) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
@@ -504,16 +605,14 @@ public class DataProviderXml implements IDataProvider{
             } else if (amount <= 0) {
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_AMOUNT);
             } else {
-                String path = getPath(Item.class);
-                Result<List<Item>> objects = xmlToBean(Item.class, path);
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate(Constants.DELETE_ITEM_SQL+object.getId());
+                statement.executeUpdate("insert into item value (" +
+                        id + ", '" +
+                        name + "', " +
+                        price + ", " +
+                        amount + ");");
+                result = new Result<>(object, Status.SUCCESS);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -538,16 +637,14 @@ public class DataProviderXml implements IDataProvider{
             if(getUserById(id).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
-                String path = getPath(User.class);
-                Result<List<User>> objects = xmlToBean(User.class, path);
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate(DELETE_USER_SQL+object.getId());
+                statement.executeUpdate("insert into user value (" +
+                        id + ", '" +
+                        firstName + "', '" +
+                        secondName + "', '" +
+                        phoneNumber + "');");
+                result = new Result<>(object, Status.SUCCESS);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -566,6 +663,12 @@ public class DataProviderXml implements IDataProvider{
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
+            StringBuilder items = new StringBuilder("");
+            for (Item i : itemList){
+                items.append(i.getId());
+                items.append("_");
+            }
+            items.delete(items.length()-1, items.length());
             Cart object = new Cart(id, userId, itemList);
             final String className = object.getClass().getSimpleName();
             Result<Cart> result;
@@ -573,19 +676,16 @@ public class DataProviderXml implements IDataProvider{
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_CART);
             } else if(getUserById(userId).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_USER_ID);
-            } else if(!(new HashSet<>(xmlToBean(Item.class, getPath(Item.class)).getObject()).containsAll(itemList))){
+            } else if(!(new HashSet<>(selectItem().getObject()).containsAll(itemList))){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_ITEM_LIST);
             } else {
-                String path = getPath(Cart.class);
-                Result<List<Cart>> objects = xmlToBean(Cart.class, path);
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate(DELETE_CART_SQL+object.getId());
+                statement.executeUpdate("insert into cart value (" +
+                        id + ", " +
+                        userId + ", '" +
+                        items + "');");
+                result = new Result<>(object, Status.SUCCESS);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -616,16 +716,15 @@ public class DataProviderXml implements IDataProvider{
             } else if(getUserById(userId).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
-                String path = getPath(GiftCertificate.class);
-                Result<List<GiftCertificate>> objects = xmlToBean(GiftCertificate.class, path);
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate(DELETE_GIFT_CERTIFICATE_SQL+object.getId());
+                statement.executeUpdate("insert into giftcertificate value (" +
+                        id + ", '" +
+                        name + "', " +
+                        currentlyAvailable + ", " +
+                        discountTotal + ", " +
+                        userId + ");");
+                result = new Result<>(object, Status.SUCCESS);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -656,16 +755,17 @@ public class DataProviderXml implements IDataProvider{
             } else if(discountPercent <= 0 || discountPercent >= 100){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_DISCOUNT_PERCENT);
             } else {
-                String path = getPath(PromoCode.class);
-                Result<List<PromoCode>> objects = xmlToBean(PromoCode.class, path);
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+
+                Statement statement = connection.createStatement();
+                statement.executeUpdate(DELETE_PROMO_CODE_SQL+object.getId());
+                statement.executeUpdate("insert into promocode value (" +
+                        id + ", '" +
+                        name + "', " +
+                        currentlyAvailable + ", " +
+                        minTotalPrice + ", " +
+                        discountPercent + ");");
+                result = new Result<>(object, Status.SUCCESS);
+
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -696,16 +796,15 @@ public class DataProviderXml implements IDataProvider{
             } else if(price <= 0){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_PRICE);
             } else {
-                String path = getPath(Order.class);
-                Result<List<Order>> objects = xmlToBean(Order.class, path);
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    objects.getObject().add(object);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate(DELETE_ORDER_SQL+object.getId());
+                statement.executeUpdate("insert into order_ value (" +
+                        id + ", '" +
+                        address + "', " +
+                        cartId + ", " +
+                        discountCodeId + ", " +
+                        price + ");");
+                result = new Result<>(object, Status.SUCCESS);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -729,29 +828,24 @@ public class DataProviderXml implements IDataProvider{
             final String className = Item.class.getSimpleName();
             if (object.isPresent()) {
                 final Item item = object.get();
-                String path = getPath(Item.class);
-                Result<List<Item>> objects = xmlToBean(Item.class, path);
+                Result<List<Item>> objects = selectItem();
                 if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object.get());
-
-                    if (result.getStatus().equals(Status.SUCCESS)){
-                        String pathCart = getPath(Cart.class);
-                        Result<List<Cart>> objectsCart = xmlToBean(Cart.class, pathCart);
-                        if (objectsCart.getStatus().equals(Status.SUCCESS)){
-                            Optional<Cart> cart = (xmlToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
-                            Result<Cart> resultCart = new Result<>(Status.SUCCESS);
-                            while (cart.isPresent() && resultCart.getStatus().equals(Status.SUCCESS)) {
-                                resultCart = deleteCart(cart.get().getId());
-                                cart = (xmlToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
-                            }
-                            if (resultCart.getStatus().equals(Status.FAULT)){
-                                result = new Result<>(Status.FAULT, resultCart.getMessage());
-                            }
-                        } else {
-                            result = new Result<>(Status.FAULT, objectsCart.getMessage());
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate(DELETE_ITEM_SQL+id);
+                    result = new Result<>(Status.SUCCESS);
+                    Result<List<Cart>> objectsCart = selectCart();
+                    if (objectsCart.getStatus().equals(Status.SUCCESS)){
+                        Optional<Cart> cart = (selectCart().getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
+                        Result<Cart> resultCart = new Result<>(Status.SUCCESS);
+                        while (cart.isPresent() && resultCart.getStatus().equals(Status.SUCCESS)) {
+                            resultCart = deleteCart(cart.get().getId());
+                            cart = (selectCart().getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
                         }
+                        if (resultCart.getStatus().equals(Status.FAULT)){
+                            result = new Result<>(Status.FAULT, resultCart.getMessage());
+                        }
+                    } else {
+                        result = new Result<>(Status.FAULT, objectsCart.getMessage());
                     }
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -780,29 +874,24 @@ public class DataProviderXml implements IDataProvider{
             Optional<User> object = getUserById(id);
             final String className = User.class.getSimpleName();
             if (object.isPresent()) {
-                String path = getPath(User.class);
-                Result<List<User>> objects = xmlToBean(User.class, path);
+                Result<List<User>> objects = selectUser();
                 if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object.get());
-
-                    if (result.getStatus().equals(Status.SUCCESS)){
-                        String pathCart = getPath(Cart.class);
-                        Result<List<Cart>> objectsCart = xmlToBean(Cart.class, pathCart);
-                        if (objectsCart.getStatus().equals(Status.SUCCESS)){
-                            Optional<Cart> cart = (xmlToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getUserId() == id).findFirst());
-                            Result<Cart> resultCart = new Result<>(Status.SUCCESS);
-                            while (cart.isPresent() && resultCart.getStatus().equals(Status.SUCCESS)) {
-                                resultCart = deleteCart(cart.get().getId());
-                                cart = (xmlToBean(Cart.class, pathCart).getObject().stream().filter(o -> o.getUserId() == id).findFirst());
-                            }
-                            if (resultCart.getStatus().equals(Status.FAULT)){
-                                result = new Result<>(Status.FAULT, resultCart.getMessage());
-                            }
-                        } else {
-                            result = new Result<>(Status.FAULT, objectsCart.getMessage());
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate(DELETE_USER_SQL+id);
+                    result = new Result<>(Status.SUCCESS);
+                    Result<List<Cart>> objectsCart = selectCart();
+                    if (objectsCart.getStatus().equals(Status.SUCCESS)){
+                        Optional<Cart> cart = (selectCart().getObject().stream().filter(o -> o.getUserId() == id).findFirst());
+                        Result<Cart> resultCart = new Result<>(Status.SUCCESS);
+                        while (cart.isPresent() && resultCart.getStatus().equals(Status.SUCCESS)) {
+                            resultCart = deleteCart(cart.get().getId());
+                            cart = (selectCart()).getObject().stream().filter(o -> o.getUserId() == id).findFirst();
                         }
+                        if (resultCart.getStatus().equals(Status.FAULT)){
+                            result = new Result<>(Status.FAULT, resultCart.getMessage());
+                        }
+                    } else {
+                        result = new Result<>(Status.FAULT, objectsCart.getMessage());
                     }
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
@@ -822,6 +911,7 @@ public class DataProviderXml implements IDataProvider{
         }
     }
 
+
     @Override
     public Result<Cart> deleteCart(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
@@ -831,27 +921,23 @@ public class DataProviderXml implements IDataProvider{
             Optional<Cart> object = getCartById(id);
             final String className = Cart.class.getSimpleName();
             if (object.isPresent()) {
-                String path = getPath(Cart.class);
-                Result<List<Cart>> objects = xmlToBean(Cart.class, path);
+                Result<List<Cart>> objects = selectCart();
                 if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object.get());
-
-                    if (result.getStatus().equals(Status.SUCCESS)){
-                        String pathOrder = getPath(Order.class);
-                        Result<List<Order>> objectsOrder = xmlToBean(Order.class, pathOrder);
-                        if (objectsOrder.getStatus().equals(Status.SUCCESS)){
-                            List<Order> orders = objectsOrder.getObject();
-                            orders.removeIf(o -> o.getCartId() == id);
-                            Result<Order> resultOrder = beanToXml(orders, Order.class.getSimpleName(), pathOrder);
-                            if (resultOrder.getStatus().equals(Status.FAULT)){
-                                result = new Result<>(Status.FAULT, resultOrder.getMessage());
-                            }
-                        } else {
-                            result = new Result<>(Status.FAULT, objectsOrder.getMessage());
-                        }
-                    }
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate(DELETE_CART_SQL+id);
+                    statement.executeUpdate("delete from order_ where cartid = "+id);
+                    result = new Result<>(Status.SUCCESS);
+//                    Result<List<Order>> objectsOrder = selectOrder();
+//                    if (objectsOrder.getStatus().equals(Status.SUCCESS)){
+//                        List<Order> orders = objectsOrder.getObject();
+//                        orders.removeIf(o -> o.getCartId() == id);
+//                        Result<Order> resultOrder = beanToCsv(orders, Order.class.getSimpleName(), pathOrder);
+//                        if (resultOrder.getStatus().equals(Status.FAULT)){
+//                            result = new Result<>(Status.FAULT, resultOrder.getMessage());
+//                        }
+//                    } else {
+//                        result = new Result<>(Status.FAULT, objectsOrder.getMessage());
+//                    }
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
@@ -869,7 +955,6 @@ public class DataProviderXml implements IDataProvider{
             return new Result<>(Status.FAULT, e.getMessage());
         }
     }
-
     @Override
     public Result<GiftCertificate> deleteGiftCertificate(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
@@ -879,27 +964,12 @@ public class DataProviderXml implements IDataProvider{
             Optional<GiftCertificate> object = getGiftCertificateById(id);
             final String className = GiftCertificate.class.getSimpleName();
             if (object.isPresent()) {
-                String path = getPath(GiftCertificate.class);
-                Result<List<GiftCertificate>> objects = xmlToBean(GiftCertificate.class, path);
+                Result<List<GiftCertificate>> objects = selectGiftCertificate();
                 if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object.get());
-
-                    if (result.getStatus().equals(Status.SUCCESS)){
-                        String pathOrder = getPath(Order.class);
-                        Result<List<Order>> objectsOrder = xmlToBean(Order.class, pathOrder);
-                        if (objectsOrder.getStatus().equals(Status.SUCCESS)){
-                            List<Order> orders = objectsOrder.getObject();
-                            orders.removeIf(o -> o.getDiscountCodeId() == id);
-                            Result<Order> resultOrder = beanToXml(orders, Order.class.getSimpleName(), pathOrder);
-                            if (resultOrder.getStatus().equals(Status.FAULT)){
-                                result = new Result<>(Status.FAULT, resultOrder.getMessage());
-                            }
-                        } else {
-                            result = new Result<>(Status.FAULT, objectsOrder.getMessage());
-                        }
-                    }
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate(DELETE_GIFT_CERTIFICATE_SQL+id);
+                    statement.executeUpdate("delete from order_ where discountCodeid = "+id);
+                    result = new Result<>(Status.SUCCESS);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
@@ -927,27 +997,12 @@ public class DataProviderXml implements IDataProvider{
             Optional<PromoCode> object = getPromoCodeById(id);
             final String className = PromoCode.class.getSimpleName();
             if (object.isPresent()) {
-                String path = getPath(PromoCode.class);
-                Result<List<PromoCode>> objects = xmlToBean(PromoCode.class, path);
+                Result<List<PromoCode>> objects = selectPromoCode();
                 if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object.get());
-
-                    if (result.getStatus().equals(Status.SUCCESS)){
-                        String pathOrder = getPath(Order.class);
-                        Result<List<Order>> objectsOrder = xmlToBean(Order.class, pathOrder);
-                        if (objectsOrder.getStatus().equals(Status.SUCCESS)){
-                            List<Order> orders = objectsOrder.getObject();
-                            orders.removeIf(o -> o.getDiscountCodeId() == id);
-                            Result<Order> resultOrder = beanToXml(orders, Order.class.getSimpleName(), pathOrder);
-                            if (resultOrder.getStatus().equals(Status.FAULT)){
-                                result = new Result<>(Status.FAULT, resultOrder.getMessage());
-                            }
-                        } else {
-                            result = new Result<>(Status.FAULT, objectsOrder.getMessage());
-                        }
-                    }
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate(DELETE_PROMO_CODE_SQL+id);
+                    statement.executeUpdate("delete from order_ where discountCodeid = "+id);
+                    result = new Result<>(Status.SUCCESS);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
@@ -975,12 +1030,11 @@ public class DataProviderXml implements IDataProvider{
             Optional<Order> object = getOrderById(id);
             final String className = Order.class.getSimpleName();
             if (object.isPresent()) {
-                String path = getPath(Order.class);
-                Result<List<Order>> objects = xmlToBean(Order.class, path);
+                Result<List<Order>> objects = selectOrder();
                 if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().removeIf(o -> o.getId() == id);
-                    result = beanToXml(objects.getObject(), className, path);
-                    result.setObject(object.get());
+                    Statement statement = connection.createStatement();
+                    statement.executeUpdate(DELETE_ORDER_SQL+id);
+                    result = new Result<>(Status.SUCCESS);
                 } else {
                     result = new Result<>(Status.FAULT, objects.getMessage());
                 }
@@ -1010,8 +1064,7 @@ public class DataProviderXml implements IDataProvider{
         log.debug(methodName);
         try {
             Result<Cart> result;
-            String pathOrder = getPath(Order.class);
-            Result<List<Order>> orderList = xmlToBean(Order.class, pathOrder);
+            Result<List<Order>> orderList = selectOrder();
             if (orderList.getStatus().equals(Status.SUCCESS)){
                 Optional<Cart> cart = getCartById(cartId);
                 if (cart.isPresent()) {
@@ -1055,11 +1108,9 @@ public class DataProviderXml implements IDataProvider{
         try {
             Result<List<Cart>> result;
             if (getUserById(userId).isPresent()){
-                String pathOrder = getPath(Order.class);
-                Result<List<Order>> orderList = xmlToBean(Order.class, pathOrder);
+                Result<List<Order>> orderList = selectOrder();
                 if (orderList.getStatus().equals(Status.SUCCESS)){
-                    String pathCart = getPath(Cart.class);
-                    Result<List<Cart>> cartList = xmlToBean(Cart.class, pathCart);
+                    Result<List<Cart>> cartList = selectCart();
                     if (cartList.getStatus().equals(Status.SUCCESS)){
                         List<Cart> userCarts = cartList.getObject().stream()
                                 .filter(o -> o.getUserId() == userId).collect(Collectors.toList());
@@ -1101,8 +1152,7 @@ public class DataProviderXml implements IDataProvider{
             Result<Cart> result;
             Optional<Cart> cart = getCartById(cartId);
             if (cart.isPresent()){
-                String pathOrder = getPath(Order.class);
-                Result<List<Order>> orderList = xmlToBean(Order.class, pathOrder);
+                Result<List<Order>> orderList = selectOrder();
                 if (orderList.getStatus().equals(Status.SUCCESS)){
                     if(orderList.getObject().stream().filter(o -> o.getCartId() == cartId).findAny().isEmpty()){
                         result = updateCart(cartId, cart.get().getUserId(), new ArrayList<>());
@@ -1167,8 +1217,7 @@ public class DataProviderXml implements IDataProvider{
         try {
             Result<? extends DiscountCode> result;
             long newPrice;
-            String pathPromoCode = getPath(PromoCode.class);
-            Result<List<PromoCode>> promoCodes = xmlToBean(PromoCode.class, pathPromoCode);
+            Result<List<PromoCode>> promoCodes = selectPromoCode();
             if (promoCodes.getStatus().equals(Status.SUCCESS)){
                 Optional<PromoCode> promoCode = promoCodes.getObject().stream()
                         .filter(o -> Objects.equals(o.getName(), discountCode)).findFirst();
@@ -1180,8 +1229,7 @@ public class DataProviderXml implements IDataProvider{
                         result = new Result<>(Status.FAULT, Constants.MESSAGE_PROMO_CODE_CANNOT_BE_APPLIED);
                     }
                 } else {
-                    String pathGiftCertificate = getPath(GiftCertificate.class);
-                    Result<List<GiftCertificate>> giftCertificates = xmlToBean(GiftCertificate.class, pathGiftCertificate);
+                    Result<List<GiftCertificate>> giftCertificates = selectGiftCertificate();
                     if (giftCertificates.getStatus().equals(Status.SUCCESS)){
                         Optional<GiftCertificate> giftCertificate = giftCertificates.getObject().stream()
                                 .filter(o -> Objects.equals(o.getName(), discountCode)).findFirst();
@@ -1317,4 +1365,3 @@ public class DataProviderXml implements IDataProvider{
         }
     }
 }
-

@@ -27,7 +27,7 @@ public class DataProviderCsv implements IDataProvider{
     private static final Logger log = LogManager.getLogger(DataProviderCsv.class.getName());
 
     private <T> Result<T> beanToCsv(List<T> objects, String className, String path) {
-        final String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
             Writer writer = new FileWriter(getConfigurationEntry(path));
@@ -47,7 +47,7 @@ public class DataProviderCsv implements IDataProvider{
     }
 
     public static <T> Result<List<T>> csvToBean(Class<T> tClass, String path) {
-        final String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
+        final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
             FileReader fileReader = new FileReader(getConfigurationEntry(path));
@@ -60,6 +60,10 @@ public class DataProviderCsv implements IDataProvider{
             HistoryContent historyContent = createHistoryContent(tClass.getSimpleName(), methodName, objects, Status.SUCCESS);
             saveHistory(historyContent);
             return new Result<>(objects, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
+        }catch (java.io.FileNotFoundException e){
+            HistoryContent historyContent = createHistoryContent(tClass.getSimpleName(), methodName, new ArrayList<>(), Status.SUCCESS);
+            saveHistory(historyContent);
+            return new Result<>(new ArrayList<>(), Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_READ);
         }catch (Exception e){
             log.error(e);
             HistoryContent historyContent = createHistoryContent(tClass.getSimpleName(), methodName, null, Status.FAULT);

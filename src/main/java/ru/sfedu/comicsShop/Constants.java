@@ -1,5 +1,14 @@
 package ru.sfedu.comicsShop;
 
+import com.opencsv.bean.CsvBindByName;
+import com.opencsv.bean.CsvCustomBindByName;
+import org.simpleframework.xml.Element;
+import org.simpleframework.xml.ElementList;
+import ru.sfedu.comicsShop.model.Item;
+import ru.sfedu.comicsShop.utils.Converter;
+
+import java.util.List;
+
 public class Constants {
 
 
@@ -115,18 +124,17 @@ public class Constants {
     public static final String CREATE_DATABASE_SQL_CONNECTION = "CREATE DATABASE ComicsShop";
 
     public static final String CREATE_ITEM_TABLE_SQL_CONNECTION =
-            "CREATE TABLE Item(id int, name varchar(100), price float)";
+            "CREATE TABLE Item(id int, name varchar(100), price int, amount int)";
     public static final String CREATE_USER_TABLE_SQL_CONNECTION =
             "CREATE TABLE User(id int, firstName varchar(100), secondName varchar(100), phoneNumber varchar(100))";
     public static final String CREATE_CART_TABLE_SQL_CONNECTION =
-            "CREATE TABLE Cart(id int, userId int, itemId int, itemAmount int)";
+            "CREATE TABLE Cart(id int, userId int, itemList varchar(100))";
     public static final String CREATE_ORDER_TABLE_SQL_CONNECTION =
-            "CREATE TABLE Order_(id int, userId int, address varchar(100), totalPrice float, discountCodeId int, discountTotalPrice float, itemIds varchar(100), itemAmounts varchar(100))";
+            "CREATE TABLE Order_(id int, address varchar(100), cartId int, discountCodeId int, price int)";
     public static final String CREATE_PROMO_CODE_TABLE_SQL_CONNECTION =
-            "CREATE TABLE PromoCode(id int, name varchar(100), currentlyAvailable BOOLEAN, minTotalPrice float, discountPercent int)";
+            "CREATE TABLE PromoCode(id int, name varchar(100), currentlyAvailable BOOLEAN, minTotalPrice int, discountPercent int)";
     public static final String CREATE_GIFT_CERTIFICATE_TABLE_SQL_CONNECTION =
-            "CREATE TABLE GiftCertificate(id int, name varchar(100), currentlyAvailable BOOLEAN, userId int, discountTotal float)";
-
+            "CREATE TABLE GiftCertificate(id int, name varchar(100), currentlyAvailable BOOLEAN, discountTotal int, userId int)";
 
 
 
