@@ -1,8 +1,5 @@
 package ru.sfedu.comicsShop.provider;
 
-import com.opencsv.bean.CsvToBeanBuilder;
-import com.opencsv.bean.StatefulBeanToCsv;
-import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.simpleframework.xml.Serializer;
@@ -1001,7 +998,7 @@ public class DataProviderXml implements IDataProvider{
 
     @Override
     public Result<Cart> createEmptyCart(long userId) {
-        return saveCart(userId, new ArrayList<Item>());
+        return saveCart(userId, new ArrayList<>());
     }
 
     @Override

@@ -2,7 +2,6 @@ package ru.sfedu.comicsShop.provider;
 
 import ru.sfedu.comicsShop.model.*;
 import ru.sfedu.comicsShop.utils.Result;
-import ru.sfedu.comicsShop.utils.Status;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +26,6 @@ public interface IDataProvider {
     Result<User> updateUser(long id, String firstName, String secondName, String phoneNumber);
     Result<Cart> updateCart(long id, long userId, List<Item> itemList);
     Result<GiftCertificate> updateGiftCertificate(long id, String name, boolean currentlyAvailable, long discountTotal, long userId);
-    //1111
     Result<PromoCode> updatePromoCode(long id, String name, boolean currentlyAvailable, long minTotalPrice, long discountPercent);
     Result<Order> updateOrder(long id, String address, long cartId, long discountCodeId, long price);
 
@@ -38,16 +36,15 @@ public interface IDataProvider {
     Result<PromoCode> deletePromoCode(long id);
     Result<Order> deleteOrder(long id);
 
-
     Result<Cart> createEmptyCart(long userId);
     Result<Cart> addItemToCart(long cartId, String name, long price, int amount);
-    Result<List<Cart>> showAllCarts(long userId); //список корзин которых нет в заказах?
-    Result<Cart> emptyCart(long cartId); //очистить корзины пользователя которых нет в заказах?
+    Result<List<Cart>> showAllCarts(long userId);
+    Result<Cart> emptyCart(long cartId);
 
     long countPrice(long cartId);
     Result<? extends DiscountCode> makeDiscount(long userId, String discountCode, long price);
-    long enterPromoCode(long discountCodeId, long price); //вернет цену со скидкой
-    long enterGiftCertificate(long discountCodeId, long userId, long price); //вернет цену со скидкой
+    long enterPromoCode(long discountCodeId, long price);
+    long enterGiftCertificate(long discountCodeId, long userId, long price);
     Result<Order> makeOrder(long cartId, String address, String discountCode);
 
 }

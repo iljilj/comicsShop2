@@ -72,17 +72,15 @@ public class DataProviderMysql implements IDataProvider {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
-            ResultSet resultSet = connection.prepareStatement(SELECT_SQL+Cart.class.getSimpleName()).executeQuery();
+            ResultSet resultSet = connection.prepareStatement("select * from cart").executeQuery();
+            ResultSet resultSetItem;
             List<Cart> objects = new ArrayList<>();
-            List<String> itemIdList;
             List<Item> itemList;
-            Item item;
             while(resultSet.next()) {
-                itemIdList = Arrays.stream(resultSet.getString(3).split("_")).toList();
+                resultSetItem = connection.prepareStatement("select * from cartItem where cartId="+resultSet.getLong(1)).executeQuery();
                 itemList = new ArrayList<>();
-                for (String idStr : itemIdList){
-                    item = getItemById(Long.parseLong(idStr)).orElse(new Item());
-                    itemList.add(item);
+                while (resultSetItem.next()){
+                    itemList.add(getItemById(resultSetItem.getLong(2)).orElse(new Item()));
                 }
                 objects.add(new Cart(resultSet.getLong(1), resultSet.getLong(2), itemList));
             }
@@ -176,20 +174,13 @@ public class DataProviderMysql implements IDataProvider {
             } else if (amount <= 0) {
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_AMOUNT);
             } else {
-                Result<List<Item>> objects = selectItem();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().add(object);
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate("insert into item value (" +
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("insert into item value (" +
                                 id + ", '" +
                                 name + "', " +
                                 price + ", " +
                                 amount + ");");
-                    System.out.println(2);
-                    result = new Result<>(object, Status.SUCCESS);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -215,23 +206,16 @@ public class DataProviderMysql implements IDataProvider {
             if(getUserById(id).isPresent()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_SUCH_ID_EXISTS);
             } else {
-                Result<List<User>> objects = selectUser();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().add(object);
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate("insert into user value (" +
-                            id + ", '" +
-                            firstName + "', '" +
-                            secondName + "', '" +
-                            phoneNumber + "');");
-                    result = new Result<>(object, Status.SUCCESS);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("insert into user value (" +
+                        id + ", '" +
+                        firstName + "', '" +
+                        secondName + "', '" +
+                        phoneNumber + "');");
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
-            System.out.println(result.getObject());
             return result;
         }catch(Exception e){
             log.error(e);
@@ -247,14 +231,6 @@ public class DataProviderMysql implements IDataProvider {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
-            StringBuilder items = new StringBuilder("");
-            for (Item i : itemList){
-                items.append(i.getId());
-                items.append("_");
-            }
-
-            items.delete(items.length()-1, items.length());
-            log.info(items);
             final long id = UUID.randomUUID().getMostSignificantBits() % 100000;
             Cart object = new Cart(id, userId, itemList);
             final String className = object.getClass().getSimpleName();
@@ -267,17 +243,15 @@ public class DataProviderMysql implements IDataProvider {
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_ITEM_LIST);
             } else {
                 Statement statement = connection.createStatement();
-                if (items.isEmpty()){
-                    statement.executeUpdate("insert into cart value (" +
+                statement.executeUpdate("insert into cart value (" +
                             id + ", " +
-                            userId + ", null);");
-                } else {
-                    statement.executeUpdate("insert into cart value (" +
+                            userId + ");");
+                for (Item i : itemList) {
+                    statement.executeUpdate("insert into cartItem value (" +
                             id + ", " +
-                            userId + ", '" +
-                            items + "');");
+                            i.getId() + ");");
                 }
-                result = new Result<>(object, Status.SUCCESS);
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -311,20 +285,14 @@ public class DataProviderMysql implements IDataProvider {
             } else if(getUserById(userId).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
-                Result<List<GiftCertificate>> objects = selectGiftCertificate();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().add(object);
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate("insert into giftcertificate value (" +
-                            id + ", '" +
-                            name + "', " +
-                            currentlyAvailable + ", " +
-                            discountTotal + ", " +
-                            userId + ");");
-                    result = new Result<>(object, Status.SUCCESS);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("insert into giftCertificate value (" +
+                        id + ", '" +
+                        name + "', " +
+                        currentlyAvailable + ", " +
+                        discountTotal + ", " +
+                        userId + ");");
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -358,20 +326,14 @@ public class DataProviderMysql implements IDataProvider {
             } else if(discountPercent <= 0 || discountPercent >= 100){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_DISCOUNT_PERCENT);
             } else {
-                Result<List<PromoCode>> objects = selectPromoCode();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().add(object);
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate("insert into promocode value (" +
-                            id + ", '" +
-                            name + "', " +
-                            currentlyAvailable + ", " +
-                            minTotalPrice + ", " +
-                            discountPercent + ");");
-                    result = new Result<>(object, Status.SUCCESS);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("insert into promoCode value (" +
+                        id + ", '" +
+                        name + "', " +
+                        currentlyAvailable + ", " +
+                        minTotalPrice + ", " +
+                        discountPercent + ");");
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -403,20 +365,14 @@ public class DataProviderMysql implements IDataProvider {
             } else if(price <= 0){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_PRICE);
             } else {
-                Result<List<Order>> objects = selectOrder();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    objects.getObject().add(object);
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate("insert into order_ value (" +
-                            id + ", '" +
-                            address + "', " +
-                            cartId + ", " +
-                            discountCodeId + ", " +
-                            price + ");");
-                    result = new Result<>(object, Status.SUCCESS);
-                }  else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("insert into order_ value (" +
+                        id + ", '" +
+                        address + "', " +
+                        cartId + ", " +
+                        discountCodeId + ", " +
+                        price + ");");
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -435,14 +391,16 @@ public class DataProviderMysql implements IDataProvider {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
-            Status status = Status.FAULT;
-            Result<List<Item>> objects = selectItem();
-            Optional<Item> object = Optional.empty();
-            if (objects.getStatus().equals(Status.SUCCESS)){
-                object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
-                if (object.isPresent()){
-                    status = Status.SUCCESS;
-                }
+            Status status;
+            ResultSet resultSet = connection.prepareStatement("select * from item where id="+id).executeQuery();
+            Optional<Item> object;
+            if(resultSet.next()) {
+                object = Optional.of(new Item(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getLong(3), resultSet.getInt(4)));
+                status = Status.SUCCESS;
+            } else {
+                object = Optional.empty();
+                status = Status.FAULT;
             }
             HistoryContent historyContent = createHistoryContent(Item.class.getSimpleName(),
                     methodName, object.orElse(new Item()), status);
@@ -456,19 +414,22 @@ public class DataProviderMysql implements IDataProvider {
             return Optional.empty();
         }
     }
+
     @Override
     public Optional<User> getUserById(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
-            Status status = Status.FAULT;
-            Result<List<User>> objects = selectUser();
-            Optional<User> object = Optional.empty();
-            if (objects.getStatus().equals(Status.SUCCESS)){
-                object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
-                if (object.isPresent()){
-                    status = Status.SUCCESS;
-                }
+            Status status;
+            ResultSet resultSet = connection.prepareStatement("select * from user where id="+id).executeQuery();
+            Optional<User> object;
+            if(resultSet.next()) {
+                object = Optional.of(new User(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getString(3), resultSet.getString(4)));
+                status = Status.SUCCESS;
+            } else {
+                object = Optional.empty();
+                status = Status.FAULT;
             }
             HistoryContent historyContent = createHistoryContent(User.class.getSimpleName(),
                     methodName, object.orElse(new User()), status);
@@ -488,14 +449,22 @@ public class DataProviderMysql implements IDataProvider {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
-            Status status = Status.FAULT;
-            Result<List<Cart>> objects = selectCart();
-            Optional<Cart> object = Optional.empty();
-            if (objects.getStatus().equals(Status.SUCCESS)){
-                object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
-                if (object.isPresent()){
-                    status = Status.SUCCESS;
+            Status status;
+            ResultSet resultSet = connection.prepareStatement("select * from cart where id="+id).executeQuery();
+            ResultSet resultSetItem = connection.prepareStatement("select * from cartItem where cartId="+id).executeQuery();
+            Optional<Cart> object;
+            if(resultSet.next()) {
+                Item item;
+                ArrayList<Item> itemList = new ArrayList<>();
+                while (resultSetItem.next()){
+                    item = getItemById(resultSetItem.getLong(2)).orElse(new Item());
+                    itemList.add(item);
                 }
+                object = Optional.of(new Cart(resultSet.getLong(1), resultSet.getLong(2), itemList));
+                status = Status.SUCCESS;
+            } else {
+                object = Optional.empty();
+                status = Status.FAULT;
             }
             HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(),
                     methodName, object.orElse(new Cart()), status);
@@ -515,14 +484,16 @@ public class DataProviderMysql implements IDataProvider {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
-            Status status = Status.FAULT;
-            Result<List<GiftCertificate>> objects = selectGiftCertificate();
-            Optional<GiftCertificate> object = Optional.empty();
-            if (objects.getStatus().equals(Status.SUCCESS)){
-                object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
-                if (object.isPresent()){
-                    status = Status.SUCCESS;
-                }
+            Status status;
+            ResultSet resultSet = connection.prepareStatement("select * from giftCertificate where id="+id).executeQuery();
+            Optional<GiftCertificate> object;
+            if(resultSet.next()) {
+                object = Optional.of(new GiftCertificate(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getBoolean(3), resultSet.getLong(4),  resultSet.getLong(5)));
+                status = Status.SUCCESS;
+            } else {
+                object = Optional.empty();
+                status = Status.FAULT;
             }
             HistoryContent historyContent = createHistoryContent(GiftCertificate.class.getSimpleName(),
                     methodName, object.orElse(new GiftCertificate()), status);
@@ -542,14 +513,16 @@ public class DataProviderMysql implements IDataProvider {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
-            Status status = Status.FAULT;
-            Result<List<PromoCode>> objects = selectPromoCode();
-            Optional<PromoCode> object = Optional.empty();
-            if (objects.getStatus().equals(Status.SUCCESS)){
-                object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
-                if (object.isPresent()){
-                    status = Status.SUCCESS;
-                }
+            Status status;
+            ResultSet resultSet = connection.prepareStatement("select * from promoCode where id="+id).executeQuery();
+            Optional<PromoCode> object;
+            if(resultSet.next()) {
+                object = Optional.of(new PromoCode(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getBoolean(3), resultSet.getLong(4), resultSet.getLong(5)));
+                status = Status.SUCCESS;
+            } else {
+                object = Optional.empty();
+                status = Status.FAULT;
             }
             HistoryContent historyContent = createHistoryContent(PromoCode.class.getSimpleName(),
                     methodName, object.orElse(new PromoCode()), status);
@@ -569,14 +542,17 @@ public class DataProviderMysql implements IDataProvider {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try {
-            Status status = Status.FAULT;
-            Result<List<Order>> objects = selectOrder();
-            Optional<Order> object = Optional.empty();
-            if (objects.getStatus().equals(Status.SUCCESS)){
-                object = objects.getObject().stream().filter(o -> o.getId() == id).findFirst();
-                if (object.isPresent()){
-                    status = Status.SUCCESS;
-                }
+            Status status;
+            ResultSet resultSet = connection.prepareStatement("select * from order_ where id="+id).executeQuery();
+            Optional<Order> object;
+            if(resultSet.next()) {
+                object = Optional.of(new Order(resultSet.getLong(1), resultSet.getString(2),
+                        resultSet.getLong(3), resultSet.getLong(4),
+                        resultSet.getLong(5)));
+                status = Status.SUCCESS;
+            } else {
+                object = Optional.empty();
+                status = Status.FAULT;
             }
             HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(),
                     methodName, object.orElse(new Order()), status);
@@ -590,6 +566,7 @@ public class DataProviderMysql implements IDataProvider {
             return Optional.empty();
         }
     }
+
     @Override
     public Result<Item> updateItem(long id, String name, long price, int amount) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
@@ -606,13 +583,13 @@ public class DataProviderMysql implements IDataProvider {
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_AMOUNT);
             } else {
                 Statement statement = connection.createStatement();
-                statement.executeUpdate(Constants.DELETE_ITEM_SQL+object.getId());
+                statement.executeUpdate("delete from item where id="+id);
                 statement.executeUpdate("insert into item value (" +
                         id + ", '" +
                         name + "', " +
                         price + ", " +
                         amount + ");");
-                result = new Result<>(object, Status.SUCCESS);
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -638,13 +615,13 @@ public class DataProviderMysql implements IDataProvider {
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
                 Statement statement = connection.createStatement();
-                statement.executeUpdate(DELETE_USER_SQL+object.getId());
+                statement.executeUpdate("delete from user where id="+id);
                 statement.executeUpdate("insert into user value (" +
                         id + ", '" +
                         firstName + "', '" +
                         secondName + "', '" +
                         phoneNumber + "');");
-                result = new Result<>(object, Status.SUCCESS);
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -663,29 +640,28 @@ public class DataProviderMysql implements IDataProvider {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
         try{
-            StringBuilder items = new StringBuilder("");
-            for (Item i : itemList){
-                items.append(i.getId());
-                items.append("_");
-            }
-            items.delete(items.length()-1, items.length());
             Cart object = new Cart(id, userId, itemList);
             final String className = object.getClass().getSimpleName();
             Result<Cart> result;
             if(getCartById(id).isEmpty()){
-                result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_CART);
+                result = new Result<>(Status.FAULT, MESSAGE_NO_SUCH_CART);
             } else if(getUserById(userId).isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_USER_ID);
             } else if(!(new HashSet<>(selectItem().getObject()).containsAll(itemList))){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_ITEM_LIST);
             } else {
                 Statement statement = connection.createStatement();
-                statement.executeUpdate(DELETE_CART_SQL+object.getId());
+                statement.executeUpdate("delete from cartItem where cartId="+id);
+                statement.executeUpdate("delete from cart where id="+id);
                 statement.executeUpdate("insert into cart value (" +
                         id + ", " +
-                        userId + ", '" +
-                        items + "');");
-                result = new Result<>(object, Status.SUCCESS);
+                        userId + ");");
+                for (Item i : itemList) {
+                    statement.executeUpdate("insert into cartItem value (" +
+                            id + ", " +
+                            i.getId() + ");");
+                }
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -717,14 +693,14 @@ public class DataProviderMysql implements IDataProvider {
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
             } else {
                 Statement statement = connection.createStatement();
-                statement.executeUpdate(DELETE_GIFT_CERTIFICATE_SQL+object.getId());
-                statement.executeUpdate("insert into giftcertificate value (" +
+                statement.executeUpdate("delete from giftCertificate where id="+id);
+                statement.executeUpdate("insert into giftCertificate value (" +
                         id + ", '" +
                         name + "', " +
                         currentlyAvailable + ", " +
                         discountTotal + ", " +
                         userId + ");");
-                result = new Result<>(object, Status.SUCCESS);
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -755,17 +731,15 @@ public class DataProviderMysql implements IDataProvider {
             } else if(discountPercent <= 0 || discountPercent >= 100){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_DISCOUNT_PERCENT);
             } else {
-
                 Statement statement = connection.createStatement();
-                statement.executeUpdate(DELETE_PROMO_CODE_SQL+object.getId());
-                statement.executeUpdate("insert into promocode value (" +
+                statement.executeUpdate("delete from promoCode where id="+id);
+                statement.executeUpdate("insert into promoCode value (" +
                         id + ", '" +
                         name + "', " +
                         currentlyAvailable + ", " +
                         minTotalPrice + ", " +
                         discountPercent + ");");
-                result = new Result<>(object, Status.SUCCESS);
-
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -797,14 +771,14 @@ public class DataProviderMysql implements IDataProvider {
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_INVALID_PRICE);
             } else {
                 Statement statement = connection.createStatement();
-                statement.executeUpdate(DELETE_ORDER_SQL+object.getId());
+                statement.executeUpdate("delete from order_ where id="+id);
                 statement.executeUpdate("insert into order_ value (" +
                         id + ", '" +
                         address + "', " +
                         cartId + ", " +
                         discountCodeId + ", " +
                         price + ");");
-                result = new Result<>(object, Status.SUCCESS);
+                result = new Result<>(object, Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_SAVE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
             saveHistory(historyContent);
@@ -822,41 +796,25 @@ public class DataProviderMysql implements IDataProvider {
     public Result<Item> deleteItem(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
-        try {
-            Result<Item> result;
+        try{
             Optional<Item> object = getItemById(id);
-            final String className = Item.class.getSimpleName();
-            if (object.isPresent()) {
-                final Item item = object.get();
-                Result<List<Item>> objects = selectItem();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate(DELETE_ITEM_SQL+id);
-                    result = new Result<>(Status.SUCCESS);
-                    Result<List<Cart>> objectsCart = selectCart();
-                    if (objectsCart.getStatus().equals(Status.SUCCESS)){
-                        Optional<Cart> cart = (selectCart().getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
-                        Result<Cart> resultCart = new Result<>(Status.SUCCESS);
-                        while (cart.isPresent() && resultCart.getStatus().equals(Status.SUCCESS)) {
-                            resultCart = deleteCart(cart.get().getId());
-                            cart = (selectCart().getObject().stream().filter(o -> o.getItemList().contains(item)).findFirst());
-                        }
-                        if (resultCart.getStatus().equals(Status.FAULT)){
-                            result = new Result<>(Status.FAULT, resultCart.getMessage());
-                        }
-                    } else {
-                        result = new Result<>(Status.FAULT, objectsCart.getMessage());
-                    }
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
-            } else {
+            final String className = object.getClass().getSimpleName();
+            Result<Item> result;
+            if(object.isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_ITEM);
+            } else {
+                ResultSet resultSetCart = connection.prepareStatement("select * from cartItem where itemId="+id).executeQuery();
+                while(resultSetCart.next()) {
+                    deleteCart(resultSetCart.getLong(1));
+                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("delete from item where id="+id);
+                result = new Result<>(object.get(), Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_DELETE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object.orElse(new Item()), result.getStatus());
             saveHistory(historyContent);
             return result;
-        } catch (Exception e) {
+        }catch(Exception e){
             log.error(e);
             HistoryContent historyContent = createHistoryContent(Item.class.getSimpleName(),
                     methodName, null, Status.FAULT);
@@ -869,40 +827,25 @@ public class DataProviderMysql implements IDataProvider {
     public Result<User> deleteUser(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
-        try {
-            Result<User> result;
+        try{
             Optional<User> object = getUserById(id);
-            final String className = User.class.getSimpleName();
-            if (object.isPresent()) {
-                Result<List<User>> objects = selectUser();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate(DELETE_USER_SQL+id);
-                    result = new Result<>(Status.SUCCESS);
-                    Result<List<Cart>> objectsCart = selectCart();
-                    if (objectsCart.getStatus().equals(Status.SUCCESS)){
-                        Optional<Cart> cart = (selectCart().getObject().stream().filter(o -> o.getUserId() == id).findFirst());
-                        Result<Cart> resultCart = new Result<>(Status.SUCCESS);
-                        while (cart.isPresent() && resultCart.getStatus().equals(Status.SUCCESS)) {
-                            resultCart = deleteCart(cart.get().getId());
-                            cart = (selectCart()).getObject().stream().filter(o -> o.getUserId() == id).findFirst();
-                        }
-                        if (resultCart.getStatus().equals(Status.FAULT)){
-                            result = new Result<>(Status.FAULT, resultCart.getMessage());
-                        }
-                    } else {
-                        result = new Result<>(Status.FAULT, objectsCart.getMessage());
-                    }
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
-            } else {
+            final String className = object.getClass().getSimpleName();
+            Result<User> result;
+            if(object.isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_USER);
+            } else {
+                ResultSet resultSetCart = connection.prepareStatement("select * from cart where userId="+id).executeQuery();
+                while(resultSetCart.next()) {
+                    deleteCart(resultSetCart.getLong(1));
+                }
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("delete from user where id="+id);
+                result = new Result<>(object.get(), Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_DELETE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object.orElse(new User()), result.getStatus());
             saveHistory(historyContent);
             return result;
-        } catch (Exception e) {
+        }catch(Exception e){
             log.error(e);
             HistoryContent historyContent = createHistoryContent(User.class.getSimpleName(),
                     methodName, null, Status.FAULT);
@@ -916,38 +859,23 @@ public class DataProviderMysql implements IDataProvider {
     public Result<Cart> deleteCart(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
-        try {
-            Result<Cart> result;
+        try{
             Optional<Cart> object = getCartById(id);
-            final String className = Cart.class.getSimpleName();
-            if (object.isPresent()) {
-                Result<List<Cart>> objects = selectCart();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate(DELETE_CART_SQL+id);
-                    statement.executeUpdate("delete from order_ where cartid = "+id);
-                    result = new Result<>(Status.SUCCESS);
-//                    Result<List<Order>> objectsOrder = selectOrder();
-//                    if (objectsOrder.getStatus().equals(Status.SUCCESS)){
-//                        List<Order> orders = objectsOrder.getObject();
-//                        orders.removeIf(o -> o.getCartId() == id);
-//                        Result<Order> resultOrder = beanToCsv(orders, Order.class.getSimpleName(), pathOrder);
-//                        if (resultOrder.getStatus().equals(Status.FAULT)){
-//                            result = new Result<>(Status.FAULT, resultOrder.getMessage());
-//                        }
-//                    } else {
-//                        result = new Result<>(Status.FAULT, objectsOrder.getMessage());
-//                    }
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
-            } else {
+            final String className = object.getClass().getSimpleName();
+            Result<Cart> result;
+            if(object.isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_CART);
+            } else {
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("delete from cart where id="+id);
+                statement.executeUpdate("delete from cartItem where cartId="+id);
+                statement.executeUpdate("delete from order_ where cartId="+id);
+                result = new Result<>(object.get(), Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_DELETE);
             }
             HistoryContent historyContent = createHistoryContent(className, methodName, object.orElse(new Cart()), result.getStatus());
             saveHistory(historyContent);
             return result;
-        } catch (Exception e) {
+        }catch(Exception e){
             log.error(e);
             HistoryContent historyContent = createHistoryContent(Cart.class.getSimpleName(),
                     methodName, null, Status.FAULT);
@@ -955,31 +883,28 @@ public class DataProviderMysql implements IDataProvider {
             return new Result<>(Status.FAULT, e.getMessage());
         }
     }
+
     @Override
     public Result<GiftCertificate> deleteGiftCertificate(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
-        try {
-            Result<GiftCertificate> result;
+        try{
             Optional<GiftCertificate> object = getGiftCertificateById(id);
-            final String className = GiftCertificate.class.getSimpleName();
-            if (object.isPresent()) {
-                Result<List<GiftCertificate>> objects = selectGiftCertificate();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate(DELETE_GIFT_CERTIFICATE_SQL+id);
-                    statement.executeUpdate("delete from order_ where discountCodeid = "+id);
-                    result = new Result<>(Status.SUCCESS);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
-            } else {
+            final String className = object.getClass().getSimpleName();
+            Result<GiftCertificate> result;
+            if(object.isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_GIFT_CERTIFICATE);
+            } else {
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("delete from giftCertificate where id="+id);
+                statement.executeUpdate("delete from order_ where discountCodeId="+id);
+                result = new Result<>(object.get(), Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_DELETE);
             }
-            HistoryContent historyContent = createHistoryContent(className, methodName, object.orElse(new GiftCertificate()), result.getStatus());
+            HistoryContent historyContent = createHistoryContent(className, methodName,
+                    object.orElse(new GiftCertificate()), result.getStatus());
             saveHistory(historyContent);
             return result;
-        } catch (Exception e) {
+        }catch(Exception e){
             log.error(e);
             HistoryContent historyContent = createHistoryContent(GiftCertificate.class.getSimpleName(),
                     methodName, null, Status.FAULT);
@@ -992,27 +917,23 @@ public class DataProviderMysql implements IDataProvider {
     public Result<PromoCode> deletePromoCode(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
-        try {
-            Result<PromoCode> result;
+        try{
             Optional<PromoCode> object = getPromoCodeById(id);
-            final String className = PromoCode.class.getSimpleName();
-            if (object.isPresent()) {
-                Result<List<PromoCode>> objects = selectPromoCode();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate(DELETE_PROMO_CODE_SQL+id);
-                    statement.executeUpdate("delete from order_ where discountCodeid = "+id);
-                    result = new Result<>(Status.SUCCESS);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
-            } else {
+            final String className = object.getClass().getSimpleName();
+            Result<PromoCode> result;
+            if(object.isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_PROMO_CODE);
+            } else {
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("delete from promoCode where id="+id);
+                statement.executeUpdate("delete from order_ where discountCodeId="+id);
+                result = new Result<>(object.get(), Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_DELETE);
             }
-            HistoryContent historyContent = createHistoryContent(className, methodName, object.orElse(new PromoCode()), result.getStatus());
+            HistoryContent historyContent = createHistoryContent(className, methodName,
+                    object.orElse(new PromoCode()), result.getStatus());
             saveHistory(historyContent);
             return result;
-        } catch (Exception e) {
+        }catch(Exception e){
             log.error(e);
             HistoryContent historyContent = createHistoryContent(PromoCode.class.getSimpleName(),
                     methodName, null, Status.FAULT);
@@ -1025,26 +946,21 @@ public class DataProviderMysql implements IDataProvider {
     public Result<Order> deleteOrder(long id) {
         final String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
         log.debug(methodName);
-        try {
-            Result<Order> result;
+        try{
             Optional<Order> object = getOrderById(id);
-            final String className = Order.class.getSimpleName();
-            if (object.isPresent()) {
-                Result<List<Order>> objects = selectOrder();
-                if (objects.getStatus().equals(Status.SUCCESS)){
-                    Statement statement = connection.createStatement();
-                    statement.executeUpdate(DELETE_ORDER_SQL+id);
-                    result = new Result<>(Status.SUCCESS);
-                } else {
-                    result = new Result<>(Status.FAULT, objects.getMessage());
-                }
-            } else {
+            final String className = object.getClass().getSimpleName();
+            Result<Order> result;
+            if(object.isEmpty()){
                 result = new Result<>(Status.FAULT, Constants.MESSAGE_NO_SUCH_ORDER);
+            } else {
+                Statement statement = connection.createStatement();
+                statement.executeUpdate("delete from order_ where id="+id);
+                result = new Result<>(object.get(), Status.SUCCESS, Constants.MESSAGE_SUCCESSFUL_DELETE);
             }
-            HistoryContent historyContent = createHistoryContent(className, methodName, object, result.getStatus());
+            HistoryContent historyContent = createHistoryContent(className, methodName, object.orElse(new Order()), result.getStatus());
             saveHistory(historyContent);
             return result;
-        } catch (Exception e) {
+        }catch(Exception e){
             log.error(e);
             HistoryContent historyContent = createHistoryContent(Order.class.getSimpleName(),
                     methodName, null, Status.FAULT);
@@ -1055,7 +971,7 @@ public class DataProviderMysql implements IDataProvider {
 
     @Override
     public Result<Cart> createEmptyCart(long userId) {
-        return saveCart(userId, new ArrayList<Item>());
+        return saveCart(userId, new ArrayList<>());
     }
 
     @Override

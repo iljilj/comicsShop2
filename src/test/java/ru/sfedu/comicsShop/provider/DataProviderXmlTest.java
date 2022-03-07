@@ -1,6 +1,5 @@
 package ru.sfedu.comicsShop.provider;
 
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -9,13 +8,9 @@ import ru.sfedu.comicsShop.model.*;
 import ru.sfedu.comicsShop.utils.Result;
 import ru.sfedu.comicsShop.utils.Status;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static ru.sfedu.comicsShop.utils.ConfigurationUtil.getConfigurationEntry;
 
 
 public class DataProviderXmlTest{
@@ -119,7 +114,7 @@ public class DataProviderXmlTest{
         Result<Item> result = provider.saveItem("JoJos Bizarre Adventure, vol. 1", 200, 1);
         assertEquals(result.getStatus(), Status.SUCCESS);
         assertEquals(provider.getItemById(result.getObject().getId()).orElse(new Item()), result.getObject());
-        assertEquals(provider.updateItem(result.getObject().getId(), "JoJo's Bizarre Adventure, vol. 1", 200, 2).getStatus(), Status.SUCCESS);
+        assertEquals(provider.updateItem(result.getObject().getId(), "JoJos Bizarre Adventure, vol. 1", 200, 2).getStatus(), Status.SUCCESS);
         assertEquals(provider.deleteItem(result.getObject().getId()).getStatus(), Status.SUCCESS);
     }
 

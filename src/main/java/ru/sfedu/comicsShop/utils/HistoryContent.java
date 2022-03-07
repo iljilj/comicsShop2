@@ -14,12 +14,6 @@ public class HistoryContent {
     public HistoryContent() {
     }
 
-//    public HistoryContent(String className, Date createdDate, String actor) {
-//        this.className = className;
-//        this.createdDate = createdDate;
-//        this.actor = actor;
-//    }
-
     public HistoryContent(long id, String className, String createdDate, String actor, String methodName, Object object, Status status) {
         this.id = id;
         this.className = className;

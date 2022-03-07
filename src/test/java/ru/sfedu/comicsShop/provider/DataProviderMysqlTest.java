@@ -1,6 +1,5 @@
 package ru.sfedu.comicsShop.provider;
 
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -9,13 +8,9 @@ import ru.sfedu.comicsShop.model.*;
 import ru.sfedu.comicsShop.utils.Result;
 import ru.sfedu.comicsShop.utils.Status;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static ru.sfedu.comicsShop.utils.ConfigurationUtil.getConfigurationEntry;
 
 
 public class DataProviderMysqlTest{
@@ -52,9 +47,7 @@ public class DataProviderMysqlTest{
         itemList3 = new ArrayList<>();
         itemList3.add(new Item(item4, "Bakuman, all volumes", 5000, 1));
 
-        System.out.println(234567);
-        System.out.println(provider.saveCart(user1, itemList1).getObject());
-        System.out.println(78976);
+
         cart1 = provider.saveCart(user1, itemList1).getObject().getId();
         cart2 = provider.saveCart(user2, itemList2).getObject().getId();
         cart3 = provider.saveCart(user3, itemList3).getObject().getId();
@@ -117,12 +110,13 @@ public class DataProviderMysqlTest{
         provider.deleteUser(user3);
     }
 
+
     @Test
     public void testItem(){
         Result<Item> result = provider.saveItem("JoJos Bizarre Adventure, vol. 1", 200, 1);
         assertEquals(result.getStatus(), Status.SUCCESS);
         assertEquals(provider.getItemById(result.getObject().getId()).orElse(new Item()), result.getObject());
-        assertEquals(provider.updateItem(result.getObject().getId(), "JoJo's Bizarre Adventure, vol. 1", 200, 2).getStatus(), Status.SUCCESS);
+        assertEquals(provider.updateItem(result.getObject().getId(), "JoJos Bizarre Adventure, vol. 1", 200, 2).getStatus(), Status.SUCCESS);
         assertEquals(provider.deleteItem(result.getObject().getId()).getStatus(), Status.SUCCESS);
     }
 
